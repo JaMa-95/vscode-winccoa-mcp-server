@@ -1,0 +1,3 @@
+# Mock WinCC OA project progs file
+WCCOAui -num 1
+WCCOAevent -num 1

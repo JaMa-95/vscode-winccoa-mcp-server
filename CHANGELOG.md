@@ -1,18 +1,29 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the "WinCC OA MCP Server" extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-- Prepared release `0.1.2`.
+### Planned
+- MCP server implementation with @modelcontextprotocol/sdk
+- PMON control tools (start, stop, status)
+- Manager management tools
+- Script execution capabilities
+- Log file access and analysis
+- Project information queries
 
-## [0.1.2] - 2025-12-10
+## [0.1.0] - 2025-12-28
 
-- Release: bump version to `0.1.2` and finalize changelog.
+### Added
+- Initial repository setup
+- Package structure and configuration
+- README with project motivation
+- Basic project scaffolding
 
-## [0.1.3] - 2025-12-11
-
-- Release: bump version to `0.1.3` and include CI/workflow docs updates.
+### Notes
+- ⚠️ Pre-release version - no functional features yet
+- Repository initialized with Git Flow (main/develop)
+- Part of WinCC OA Tools Pack ecosystem

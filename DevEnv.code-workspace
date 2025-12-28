@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../DevEnv"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.colorCustomizations": {
+			"activityBar.background": "#3D1F66",
+			"titleBar.activeBackground": "#552B90",
+			"titleBar.activeForeground": "#FBFAFD"
+		}
+	}
+}

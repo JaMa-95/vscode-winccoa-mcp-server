@@ -76,7 +76,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('winccoa.mcp.showMenu', showMenu),
         vscode.commands.registerCommand('winccoa.mcp.testConnection', testConnection),
-        vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo)
+        vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
+        vscode.commands.registerCommand('winccoa.mcp.reconnect', reconnect),
+        vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show())
     );
 
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
@@ -357,4 +359,12 @@ async function testConnection(): Promise<void> {
         ExtensionOutputChannel.error(`testConnection error: ${error.message}`);
         vscode.window.showErrorMessage(`MCP Connection Error: ${error.message}`);
     }
+}
+
+/**
+ * Reconnect to MCP Server (called from Panel)
+ */
+async function reconnect(): Promise<void> {
+    ExtensionOutputChannel.info('Manual reconnect triggered...');
+    await testConnection();
 }

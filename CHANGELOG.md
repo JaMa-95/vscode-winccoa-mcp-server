@@ -8,10 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Setup Wizard Webview
+- Auto-Detection: Read .env from WinCC OA project
+- Project Admin Extension integration
+- Setup Wizard for MCP Server installation
 - Health Check (HTTP ping)
 - Claude Desktop config writer
 - PMON integration with Core Extension
+
+## [0.3.0] - 2026-01-13
+
+### Fixed
+- **Critical:** `get-datapoints` tool used wrong parameter name (`pattern` instead of `dpNamePattern`)
+- **Critical:** Multiple datapoint results were ignored (only first result was returned)
+- Datapoint search now correctly finds all matching datapoints
+
+### Added
+- TEST_PROMPTS.md: Comprehensive test scenarios for manual testing
 
 ## [0.2.0] - 2025-12-28
 

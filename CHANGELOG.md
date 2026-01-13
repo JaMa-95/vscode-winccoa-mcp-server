@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Setup Wizard for MCP Server installation
 - PMON integration with Core Extension
 
+## [0.5.0] - 2026-01-13
+
+### Added
+- **Execute Script Tool**: New Language Model Tool `winccoa_execute_script` for executing CTL scripts via Script Actions extension
+- Integration with WinCC OA Script Actions extension
+- Script file search in workspace
+- Support for script arguments
+
+### Changed
+- Tool count increased from 5 to 6
+
 ## [0.4.0] - 2026-01-13
 
 ### Added

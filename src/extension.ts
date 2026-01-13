@@ -78,7 +78,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand('winccoa.mcp.testConnection', testConnection),
         vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
         vscode.commands.registerCommand('winccoa.mcp.reconnect', reconnect),
-        vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show())
+        vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show()),
+        vscode.commands.registerCommand('winccoa.mcp.executeScript', executeScript)
     );
 
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
@@ -367,4 +368,42 @@ async function testConnection(): Promise<void> {
 async function reconnect(): Promise<void> {
     ExtensionOutputChannel.info('Manual reconnect triggered...');
     await testConnection();
+}
+
+/**
+ * Execute WinCC OA Script via Script Actions Extension
+ */
+async function executeScript(scriptPath: string, args: string = ''): Promise<void> {
+    try {
+        ExtensionOutputChannel.info(`Execute Script requested: ${scriptPath} with args: ${args || '(none)'}`);
+
+        // Find script file in workspace
+        const files = await vscode.workspace.findFiles(`**/${scriptPath}`, '**/node_modules/**', 1);
+        
+        if (files.length === 0) {
+            throw new Error(`Script not found: ${scriptPath}`);
+        }
+
+        const fileUri = files[0];
+
+        // Check if Script Actions extension is available
+        const scriptActionsExt = vscode.extensions.getExtension('richardjanisch.winccoa-script-actions');
+        if (!scriptActionsExt) {
+            throw new Error('WinCC OA Script Actions extension not installed');
+        }
+
+        // Execute script via Script Actions extension
+        ExtensionOutputChannel.info(`Calling Script Actions: ${fileUri.fsPath} with args: ${args}`);
+        
+        await vscode.commands.executeCommand(
+            'winccoa.executeScriptWithArgs',
+            fileUri,
+            args
+        );
+
+        ExtensionOutputChannel.info(`✅ Script execution started successfully`);
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`executeScript error: ${error.message}`);
+        throw error;
+    }
 }

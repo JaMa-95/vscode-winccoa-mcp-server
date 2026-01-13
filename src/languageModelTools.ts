@@ -105,17 +105,22 @@ class GetDatapointsTool implements vscode.LanguageModelTool<{ pattern: string }>
         token: vscode.CancellationToken
     ): Promise<vscode.LanguageModelToolResult> {
         try {
+            // Auto-add wildcards if missing (unless pattern has : or already contains *)
+            let pattern = options.input.pattern;
+            if (!pattern.includes('*') && !pattern.includes(':')) {
+                pattern = `*${pattern}*`;
+            }
+
             const result = await this.client.callTool('get-datapoints', {
-                pattern: options.input.pattern,
-                includeDetails: false
+                dpNamePattern: pattern
             });
 
             if (!result.content || result.content.length === 0) {
                 throw new Error('No response from MCP server');
             }
 
-            const response = JSON.parse(result.content[0].text!);
-            const datapoints = response.data || response;
+            // MCP Server returns multiple datapoints as separate content items
+            const datapoints = result.content.map(item => JSON.parse(item.text!));
 
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(JSON.stringify(datapoints, null, 2))

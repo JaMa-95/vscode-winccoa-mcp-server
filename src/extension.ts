@@ -12,6 +12,7 @@ import { StatusBarManager } from './statusBar';
 import { WinCCOAChatParticipant } from './chatParticipant';
 import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
+import { SetupWizard } from './setupWizard';
 
 let statusBar: StatusBarManager;
 let chatParticipant: WinCCOAChatParticipant;
@@ -42,7 +43,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const { config, error } = await configDetector.detectConfig();
         
         if (!config) {
-            handleDetectionError(error);
+            // Check if auto-setup should run
+            await handleDetectionError(error);
             statusBar.setStatus('error');
         } else {
             ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
@@ -79,7 +81,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
         vscode.commands.registerCommand('winccoa.mcp.reconnect', reconnect),
         vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show()),
-        vscode.commands.registerCommand('winccoa.mcp.executeScript', executeScript)
+        vscode.commands.registerCommand('winccoa.mcp.executeScript', executeScript),
+        vscode.commands.registerCommand('winccoa.mcp.runSetup', runSetup)
     );
 
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
@@ -265,7 +268,7 @@ async function getMcpConfig(): Promise<McpConfig | null> {
 /**
  * Handle config detection errors
  */
-function handleDetectionError(error?: string): void {
+async function handleDetectionError(error?: string): Promise<void> {
     switch (error) {
         case 'project-admin-missing':
             vscode.window.showWarningMessage(
@@ -287,12 +290,15 @@ function handleDetectionError(error?: string): void {
 
         case 'mcp-not-installed':
         case 'env-file-missing':
+            // Offer auto-setup wizard
             vscode.window.showWarningMessage(
                 'MCP Server not found in current project',
-                'Setup Wizard (TODO)',
+                'Run Setup Wizard',
                 'Manual Config'
-            ).then(selection => {
-                if (selection === 'Manual Config') {
+            ).then(async selection => {
+                if (selection === 'Run Setup Wizard') {
+                    await vscode.commands.executeCommand('winccoa.mcp.runSetup');
+                } else if (selection === 'Manual Config') {
                     ExtensionOutputChannel.show();
                 }
             });
@@ -405,5 +411,73 @@ async function executeScript(scriptPath: string, args: string = ''): Promise<voi
     } catch (error: any) {
         ExtensionOutputChannel.error(`executeScript error: ${error.message}`);
         throw error;
+    }
+}
+
+/**
+ * Run Setup Wizard to install MCP Server
+ */
+async function runSetup(): Promise<void> {
+    try {
+        ExtensionOutputChannel.info('Running MCP Server Setup Wizard...');
+
+        // Get active project from Project Admin Extension
+        const projectAdminExt = vscode.extensions.getExtension('RichardJanisch.winccoa-project-admin');
+        if (!projectAdminExt) {
+            vscode.window.showErrorMessage(
+                'WinCC OA Project Admin Extension required for auto-setup',
+                'Install Extension'
+            ).then(selection => {
+                if (selection === 'Install Extension') {
+                    vscode.env.openExternal(vscode.Uri.parse(
+                        'https://marketplace.visualstudio.com/items?itemName=RichardJanisch.winccoa-project-admin'
+                    ));
+                }
+            });
+            return;
+        }
+
+        // Activate and get API
+        const api = await projectAdminExt.activate();
+        if (!api.getCurrentProject) {
+            throw new Error('Project Admin Extension API not compatible');
+        }
+
+        const project = await api.getCurrentProject();
+        if (!project) {
+            vscode.window.showWarningMessage('No WinCC OA project selected. Please select a project first.');
+            return;
+        }
+
+        ExtensionOutputChannel.info(`Running setup for project: ${project.name || project.id}`);
+
+        // Project Admin API uses projectDir, not path
+        const projectPath = project.projectDir;
+        if (!projectPath) {
+            throw new Error('Could not determine project path from Project Admin API (projectDir missing)');
+        }
+
+        ExtensionOutputChannel.info(`Project path: ${projectPath}`);
+
+        // Check if already installed
+        const isInstalled = await SetupWizard.isMcpServerInstalled(projectPath);
+        if (isInstalled) {
+            vscode.window.showInformationMessage(
+                `MCP Server already installed in project "${project.name}"`
+            );
+            return;
+        }
+
+        // Run setup wizard
+        const success = await SetupWizard.runSetup(projectPath, project.name || project.id);
+        
+        if (success) {
+            // Invalidate cache and reconnect
+            configDetector.invalidateCache();
+            await vscode.commands.executeCommand('winccoa.mcp.reconnect');
+        }
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`Setup wizard error: ${error.message}`);
+        vscode.window.showErrorMessage(`Setup failed: ${error.message}`);
     }
 }

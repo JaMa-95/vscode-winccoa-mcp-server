@@ -8,8 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Setup Wizard for MCP Server installation
-- PMON integration with Core Extension
+- PMON integration with Core Extension (automatic manager registration)
+
+## [0.6.0] - 2026-01-13
+
+### Added
+- **Auto-Setup Wizard**: Automatic MCP Server installation for projects without MCP
+  - Repository cloning (`git clone`)
+  - NPM dependency installation
+  - Secure token generation (crypto.randomBytes)
+  - `.env` file creation with configuration
+  - MCP Server build process
+  - PMON integration instructions (manual step for now)
+- **Setup Detection**: Automatically detects missing MCP Server on startup
+- **User Prompts**: "Run Setup Wizard" option when MCP Server not found
+- **Command**: `winccoa.mcp.runSetup` for manual setup trigger
+- **Progress Notifications**: Live progress updates during setup steps
+
+### Changed
+- `handleDetectionError` now offers "Run Setup Wizard" instead of "Setup Wizard (TODO)"
+- Detection errors trigger async setup flow
+- Setup wizard integrates with Project Admin Extension API
+
+### Known Issues
+- **Manager Package Resolution**: After setup, WinCC OA Manager may fail with `Cannot find package 'winccoa-manager'` error
+  - Cause: Node module resolution in cloned repository
+  - Workaround: Manual PMON configuration may be needed
+  - Status: Investigating proper NODE_PATH configuration
+
+### TODO
+- Automatic PMON manager registration (requires Core Extension integration)
 
 ## [0.5.0] - 2026-01-13
 

@@ -8,12 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Auto-Detection: Read .env from WinCC OA project
-- Project Admin Extension integration
 - Setup Wizard for MCP Server installation
-- Health Check (HTTP ping)
-- Claude Desktop config writer
 - PMON integration with Core Extension
+
+## [0.4.0] - 2026-01-13
+
+### Added
+- **Auto-Detection:** Read MCP config from project `.env` file (token, port, authType)
+- **Project Admin Integration:** Automatic project detection and config loading
+- **Project Change Events:** Auto-reconnect when project switches in Project Admin
+- **Copilot-style Panel UI:** Click status bar opens panel at bottom (like GitHub Copilot)
+  - Connection status with live updates
+  - Project name, server URL, and tool count
+  - Action buttons: Test Connection, Reconnect, Settings, Logs
+- **Language Model Tools:** Always available (lazy client loading pattern)
+- **Status Bar:** Renamed to "WinCC OA Copilot" with magic wand icon ($(wand))
+
+### Fixed
+- **Security:** Removed hardcoded token from public repository
+- **UX:** No more notification spam for "no project selected" (only logs + red icon)
+- **Tools Availability:** Tools now registered at startup (always visible to Copilot)
+
+### Changed
+- Error handling improved with 5 specific scenarios
+- Config detection with caching and invalidation on project change
 
 ## [0.3.0] - 2026-01-13
 

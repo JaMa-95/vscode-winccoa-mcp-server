@@ -11,7 +11,7 @@ Diese Prompts testen die autonome Tool-Nutzung durch GitHub Copilot.
 
 ### Deutsch
 ```
-Wie viele Manager laufen gerade?
+Wie viele Manager laufen gerade?oka
 ```
 ```
 Zeig mir alle WinCC OA Manager

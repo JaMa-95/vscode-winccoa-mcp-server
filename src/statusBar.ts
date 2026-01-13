@@ -35,7 +35,7 @@ export class StatusBarManager {
      */
     private updateDisplay(message?: string): void {
         const icons = {
-            connected: '$(radio-tower)',
+            connected: '$(wand)',           // Magic wand - AI assistant
             disconnected: '$(circle-slash)',
             connecting: '$(sync~spin)',
             error: '$(error)'
@@ -50,8 +50,8 @@ export class StatusBarManager {
 
         const statusText = message || this.currentStatus;
         
-        this.statusBarItem.text = `${icons[this.currentStatus]} MCP Server`;
-        this.statusBarItem.tooltip = `MCP Server: ${statusText}\nClick for menu`;
+        this.statusBarItem.text = `${icons[this.currentStatus]} WinCC OA Copilot`;
+        this.statusBarItem.tooltip = `WinCC OA Copilot: ${statusText}\nClick for menu`;
         this.statusBarItem.backgroundColor = colors[this.currentStatus];
     }
 
@@ -61,7 +61,7 @@ export class StatusBarManager {
     setConnectionInfo(serverName?: string, toolCount?: number): void {
         if (serverName && toolCount !== undefined) {
             this.statusBarItem.tooltip = 
-                `MCP Server: ${this.currentStatus}\n` +
+                `WinCC OA Copilot: ${this.currentStatus}\n` +
                 `Server: ${serverName}\n` +
                 `Tools: ${toolCount}\n` +
                 `Click for menu`;

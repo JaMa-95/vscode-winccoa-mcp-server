@@ -11,10 +11,12 @@ import { ExtensionOutputChannel } from './extensionOutput';
 import { StatusBarManager } from './statusBar';
 import { WinCCOAChatParticipant } from './chatParticipant';
 import { LanguageModelTools } from './languageModelTools';
+import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 
 let statusBar: StatusBarManager;
 let chatParticipant: WinCCOAChatParticipant;
 let languageModelTools: LanguageModelTools;
+let configDetector: ProjectConfigDetector;
 
 /**
  * Extension activation
@@ -22,19 +24,34 @@ let languageModelTools: LanguageModelTools;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activating...');
 
+    // Initialize Config Detector
+    configDetector = new ProjectConfigDetector();
+
     // Initialize Status Bar
     statusBar = new StatusBarManager();
     context.subscriptions.push(statusBar);
 
+    // Initialize Language Model Tools (always register, even without client)
+    languageModelTools = new LanguageModelTools(null);
+    languageModelTools.register(context);
+
     // Auto-connect to MCP server on startup
     let client: McpClient | null = null;
     try {
-        ExtensionOutputChannel.info('Auto-connecting to MCP server...');
-        const config = getMcpConfig();
-        client = new McpClient(config);
-        await client.initialize();
-        statusBar.setStatus('connected');
-        ExtensionOutputChannel.info('✅ Auto-connect successful - MCP Server ready');
+        ExtensionOutputChannel.info('Auto-detecting MCP configuration...');
+        const { config, error } = await configDetector.detectConfig();
+        
+        if (!config) {
+            handleDetectionError(error);
+            statusBar.setStatus('error');
+        } else {
+            ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
+            client = new McpClient(config);
+            await client.initialize();
+            statusBar.setStatus('connected');
+            languageModelTools.updateClient(client);  // Update tools with connected client
+            ExtensionOutputChannel.info(`✅ Connected to ${config.projectName || 'WinCC OA'} MCP Server`);
+        }
     } catch (error: any) {
         ExtensionOutputChannel.error(`Auto-connect failed: ${error.message}`);
         statusBar.setStatus('error');
@@ -48,11 +65,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         });
     }
 
-    // Initialize Language Model Tools (if client connected)
-    if (client) {
-        languageModelTools = new LanguageModelTools(client);
-        languageModelTools.register(context);
-    }
+    // Subscribe to Project Admin project changes
+    await subscribeToProjectChanges(context);
 
     // Initialize Chat Participant
     chatParticipant = new WinCCOAChatParticipant(getMcpConfig);
@@ -62,7 +76,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(
         vscode.commands.registerCommand('winccoa.mcp.showMenu', showMenu),
         vscode.commands.registerCommand('winccoa.mcp.testConnection', testConnection),
-        vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo)
+        vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
+        vscode.commands.registerCommand('winccoa.mcp.reconnect', reconnect),
+        vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show())
     );
 
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
@@ -116,7 +132,12 @@ async function showServerInfo(): Promise<void> {
     try {
         statusBar.setStatus('connecting', 'Fetching server info...');
 
-        const config = getMcpConfig();
+        const config = await getMcpConfig();
+        if (!config) {
+            statusBar.setStatus('error', 'No config available');
+            return;
+        }
+
         const client = new McpClient(config);
         
         const initResult = await client.initialize();
@@ -132,8 +153,10 @@ async function showServerInfo(): Promise<void> {
 
         const infoMessage = 
             `📡 MCP Server Information\n\n` +
+            `Project: ${config.projectName || 'Unknown'}\n` +
             `Server: ${initResult.serverInfo.name} ${initResult.serverInfo.version}\n` +
-            `Protocol: ${initResult.protocolVersion}\n\n` +
+            `Protocol: ${initResult.protocolVersion}\n` +
+            `URL: ${config.url}\n\n` +
             `Available Tools (${tools.length}):\n${toolsList}\n\n` +
             `Available Resources (${resources.length}):\n${resourcesList}`;
 
@@ -154,15 +177,135 @@ async function showServerInfo(): Promise<void> {
 }
 
 /**
- * Get MCP Configuration
- * TODO: Later from settings/auto-detection
+ * Subscribe to Project Admin project changes
  */
-function getMcpConfig() {
-    return {
-        url: 'http://localhost:3001/mcp',
-        token: 'b31ad5e10c14a1a40d9f95d3650cf21f69d4be69f75dea2f9ee030a3c5981eaa',
-        authType: 'bearer' as const
-    };
+async function subscribeToProjectChanges(context: vscode.ExtensionContext): Promise<void> {
+    const projectAdmin = vscode.extensions.getExtension('RichardJanisch.winccoa-project-admin');
+    
+    if (!projectAdmin) {
+        ExtensionOutputChannel.debug('Project Admin not found - skipping project change subscription');
+        return;
+    }
+
+    if (!projectAdmin.isActive) {
+        await projectAdmin.activate();
+    }
+
+    const api = projectAdmin.exports;
+    if (!api || !api.onDidChangeProject) {
+        ExtensionOutputChannel.warn('Project Admin API not available for project change events');
+        return;
+    }
+
+    // Subscribe to project changes
+    api.onDidChangeProject(async (project: any) => {
+        ExtensionOutputChannel.info('Project changed - reconnecting MCP Server...');
+        
+        // Invalidate config cache
+        configDetector.invalidateCache();
+        
+        if (!project) {
+            ExtensionOutputChannel.debug('No project selected');
+            statusBar.setStatus('disconnected');
+            handleDetectionError('no-project-selected');
+            return;
+        }
+
+        ExtensionOutputChannel.info(`New project: ${project.name}`);
+
+        // Reconnect to MCP Server with new project config
+        try {
+            const { config, error } = await configDetector.detectConfig();
+            
+            if (!config) {
+                handleDetectionError(error);
+                statusBar.setStatus('error');
+                return;
+            }
+
+            // Create new client
+            const client = new McpClient(config);
+            await client.initialize();
+            
+            // Update Language Model Tools with new client
+            languageModelTools.updateClient(client);
+
+            statusBar.setStatus('connected');
+            ExtensionOutputChannel.info(`✅ Connected to ${config.projectName} MCP Server`);
+
+            vscode.window.showInformationMessage(
+                `Switched to ${config.projectName} - MCP Server reconnected`
+            );
+
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Failed to reconnect: ${error.message}`);
+            statusBar.setStatus('error');
+            vscode.window.showErrorMessage(`MCP Server reconnection failed: ${error.message}`);
+        }
+    });
+
+    ExtensionOutputChannel.info('Subscribed to Project Admin project changes');
+}
+
+/**
+ * Get MCP Configuration (with auto-detection)
+ */
+async function getMcpConfig(): Promise<McpConfig | null> {
+    const { config, error } = await configDetector.detectConfig();
+    
+    if (!config) {
+        handleDetectionError(error);
+        return null;
+    }
+    
+    return config;
+}
+
+/**
+ * Handle config detection errors
+ */
+function handleDetectionError(error?: string): void {
+    switch (error) {
+        case 'project-admin-missing':
+            vscode.window.showWarningMessage(
+                'WinCC OA Project Admin Extension required for auto-configuration',
+                'Learn More'
+            ).then(selection => {
+                if (selection === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse(
+                        'https://marketplace.visualstudio.com/items?itemName=RichardJanisch.winccoa-project-admin'
+                    ));
+                }
+            });
+            break;
+
+        case 'no-project-selected':
+            // Don't show notification - red icon is enough indicator
+            ExtensionOutputChannel.debug('No WinCC OA project selected');
+            break;
+
+        case 'mcp-not-installed':
+        case 'env-file-missing':
+            vscode.window.showWarningMessage(
+                'MCP Server not found in current project',
+                'Setup Wizard (TODO)',
+                'Manual Config'
+            ).then(selection => {
+                if (selection === 'Manual Config') {
+                    ExtensionOutputChannel.show();
+                }
+            });
+            break;
+
+        case 'token-missing':
+            vscode.window.showErrorMessage(
+                'MCP_API_TOKEN not found in .env file. Please check your MCP Server installation.'
+            );
+            break;
+
+        default:
+            ExtensionOutputChannel.warn(`Unknown detection error: ${error}`);
+    }
 }
 
 /**
@@ -172,7 +315,12 @@ async function testConnection(): Promise<void> {
     try {
         statusBar.setStatus('connecting', 'Testing connection...');
 
-        const config = getMcpConfig();
+        const config = await getMcpConfig();
+        if (!config) {
+            statusBar.setStatus('error', 'No config available');
+            return;
+        }
+
         const client = new McpClient(config);
         
         await vscode.window.withProgress({
@@ -196,6 +344,7 @@ async function testConnection(): Promise<void> {
 
                 vscode.window.showInformationMessage(
                     `✅ MCP Server Connected!\n` +
+                    `Project: ${config.projectName || 'Unknown'}\n` +
                     `Server: ${initResult.serverInfo.name} ${initResult.serverInfo.version}\n` +
                     `Tools: ${tools.length}`
                 );
@@ -210,4 +359,12 @@ async function testConnection(): Promise<void> {
         ExtensionOutputChannel.error(`testConnection error: ${error.message}`);
         vscode.window.showErrorMessage(`MCP Connection Error: ${error.message}`);
     }
+}
+
+/**
+ * Reconnect to MCP Server (called from Panel)
+ */
+async function reconnect(): Promise<void> {
+    ExtensionOutputChannel.info('Manual reconnect triggered...');
+    await testConnection();
 }

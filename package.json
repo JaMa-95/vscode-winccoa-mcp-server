@@ -6,6 +6,10 @@
   "version": "0.2.0",
   "author": "Richard Janisch",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rjanisch/vscode-winccoa-mcp-server.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -24,65 +28,148 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "dist/extension.js",
+  "main": "dist/src/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node dist/test/mcpClient.test.js",
+    "package": "vsce package"
+  },
   "contributes": {
     "commands": [
       {
-        "command": "winccoa.mcp.setup",
-        "title": "WinCC OA: Setup MCP Server"
+        "command": "winccoa.mcp.testConnection",
+        "title": "WinCC OA: Test MCP Connection"
       },
       {
-        "command": "winccoa.mcp.start",
-        "title": "WinCC OA: Start MCP Server"
+        "command": "winccoa.mcp.showInfo",
+        "title": "WinCC OA: Show MCP Server Info"
       },
       {
-        "command": "winccoa.mcp.stop",
-        "title": "WinCC OA: Stop MCP Server"
+        "command": "winccoa.mcp.showMenu",
+        "title": "WinCC OA: MCP Server Menu"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "winccoa",
+        "name": "winccoa",
+        "description": "Interact with WinCC OA projects via MCP Server",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "managers",
+            "description": "List all WinCC OA managers"
+          },
+          {
+            "name": "datapoints",
+            "description": "Search datapoints by pattern"
+          },
+          {
+            "name": "get",
+            "description": "Get current value of a datapoint element"
+          },
+          {
+            "name": "dptypes",
+            "description": "List datapoint types"
+          },
+          {
+            "name": "tools",
+            "description": "List available MCP tools"
+          },
+          {
+            "name": "help",
+            "description": "Show help and examples"
+          }
+        ]
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "winccoa_list_managers",
+        "displayName": "List WinCC OA Managers",
+        "modelDescription": "Lists all WinCC OA managers in the current project with their status (running/stopped). Use this when the user asks about managers, processes, or what's running in the WinCC OA system.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_managers",
+        "icon": "$(server-process)",
+        "userDescription": "List all WinCC OA managers"
       },
       {
-        "command": "winccoa.mcp.restart",
-        "title": "WinCC OA: Restart MCP Server"
+        "name": "winccoa_get_datapoints",
+        "displayName": "Get WinCC OA Datapoints",
+        "modelDescription": "Searches for datapoints in the WinCC OA system by pattern. Supports wildcards (*). Use this when the user asks about datapoints, data, values, or wants to find specific system elements. Examples: 'System1:*', '*Pump*', 'ExampleDP_Arg1.'",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_datapoints",
+        "icon": "$(database)",
+        "userDescription": "Search for datapoints by pattern",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Search pattern with wildcards (e.g., '*Pump*', 'System1:*')"
+            }
+          },
+          "required": ["pattern"]
+        }
       },
       {
-        "command": "winccoa.mcp.showLogs",
-        "title": "WinCC OA: Show MCP Logs"
+        "name": "winccoa_get_value",
+        "displayName": "Get Datapoint Value",
+        "modelDescription": "Gets the current value of a specific datapoint element in WinCC OA. Use this when the user asks for the current value, state, or status of a specific datapoint. The datapoint must be specified in the format 'System:DpName.Element' (e.g., 'System1:Pump.state').",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_value",
+        "icon": "$(symbol-number)",
+        "userDescription": "Get current value of a datapoint element",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpe": {
+              "type": "string",
+              "description": "Datapoint element name (e.g., 'System1:Pump.state')"
+            }
+          },
+          "required": ["dpe"]
+        }
       },
       {
-        "command": "winccoa.mcp.diagnostics",
-        "title": "WinCC OA: MCP Diagnostics"
+        "name": "winccoa_get_dptypes",
+        "displayName": "Get Datapoint Types",
+        "modelDescription": "Lists datapoint type definitions in WinCC OA. Use this when the user asks about datapoint types, structures, or data models. Supports pattern matching with wildcards.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_types",
+        "icon": "$(symbol-class)",
+        "userDescription": "List datapoint type definitions",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Type name pattern with wildcards (default: '*')"
+            }
+          }
+        }
       },
       {
-        "command": "winccoa.mcp.updateConfig",
-        "title": "WinCC OA: Update MCP Configuration"
-      },
-      {
-        "command": "winccoa.mcp.generateToken",
-        "title": "WinCC OA: Generate MCP Token"
+        "name": "winccoa_get_manager_status",
+        "displayName": "Get Manager Status",
+        "modelDescription": "Gets detailed status information for a specific WinCC OA manager by name. Use this when the user asks about a specific manager's details, configuration, or state.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_manager",
+        "icon": "$(info)",
+        "userDescription": "Get detailed status of a specific manager",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "managerName": {
+              "type": "string",
+              "description": "Name of the manager"
+            }
+          },
+          "required": ["managerName"]
+        }
       }
     ]
-  },
-  "scripts": {
-    "build": "tsc --build",
-    "compile": "tsc --build",
-    "prepublishOnly": "npm run build",
-    "lint": "eslint \"src/**/*.ts\"",
-    "lint:fix": "eslint \"src/**/*.ts\" --fix",
-    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
-    "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "format:md": "prettier --write \"**/*.md\"",
-    "format:md:check": "prettier --check \"**/*.md\"",
-    "style-check": "npm run lint && npm run format:check && npm run lint:md && npm run format:md:check",
-    "style-fix": "npm run lint:fix && npm run format && npm run lint:md:fix && npm run format:md",
-    "test": "npm run compile && node ./dist/test/runTest.js",
-    "test:unit": "npm run compile && npx mocha --ui tdd dist/test/unit/**/*.test.js",
-    "test:integration": "npm run compile && npx mocha --ui tdd dist/test/integration/**/*.test.js",
-    "test:watch": "npx mocha --watch --ui tdd --watch-files dist/**/*.js dist/test/**/*.test.js",
-    "ci:integration": "npm ci && npm run test:integration",
-    "watch": "tsc --build --watch",
-    "package": "vsce package",
-    "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
     "@types/chai": "^5.2.3",

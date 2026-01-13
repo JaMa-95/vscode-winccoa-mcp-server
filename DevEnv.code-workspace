@@ -1,10 +1,8 @@
 {
 	"folders": [
 		{
-			"path": "../DevEnv"
-		},
-		{
-			"path": "."
+			"name": "DevEnv",
+			"path": "../../wincc_proj/DevEnv"
 		}
 	],
 	"settings": {

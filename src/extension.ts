@@ -373,7 +373,38 @@ async function testConnection(): Promise<void> {
  */
 async function reconnect(): Promise<void> {
     ExtensionOutputChannel.info('Manual reconnect triggered...');
-    await testConnection();
+    
+    try {
+        // Get current config
+        const { config, error } = await configDetector.detectConfig();
+        
+        if (!config) {
+            await handleDetectionError(error);
+            statusBar.setStatus('error');
+            return;
+        }
+
+        ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
+        
+        // Create new client
+        const client = new McpClient(config);
+        await client.initialize();
+        
+        // Update Language Model Tools with new client
+        languageModelTools.updateClient(client);
+        
+        statusBar.setStatus('connected');
+        ExtensionOutputChannel.info(`✅ Connected to ${config.projectName || 'WinCC OA'} MCP Server`);
+        
+        vscode.window.showInformationMessage(
+            `Connected to ${config.projectName || 'WinCC OA'} MCP Server`
+        );
+        
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`Reconnect failed: ${error.message}`);
+        statusBar.setStatus('error');
+        vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
+    }
 }
 
 /**

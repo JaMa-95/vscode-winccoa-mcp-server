@@ -127,6 +127,7 @@ export class SetupWizard {
         const mcpPath = path.join(projectDir, this.MCP_SUBPATH, 'mcpWinCCOA');
         ExtensionOutputChannel.info(`Installing dependencies in: ${mcpPath}`);
 
+        // Step 1: Install package dependencies
         const result = await this.executeCommand('npm', ['install'], mcpPath);
 
         if (result.exitCode !== 0) {
@@ -134,6 +135,53 @@ export class SetupWizard {
         }
 
         ExtensionOutputChannel.info('Dependencies installed successfully');
+
+        // Step 2: Install winccoa-manager from local WinCC OA installation
+        await this.installWinCCOAManager(projectDir);
+    }
+
+    /**
+     * Install winccoa-manager package from WinCC OA installation
+     */
+    private static async installWinCCOAManager(projectDir: string): Promise<void> {
+        const mcpPath = path.join(projectDir, this.MCP_SUBPATH, 'mcpWinCCOA');
+
+        // Find WinCC OA installation (Linux path)
+        const winCCOAPaths = [
+            '/opt/WinCC_OA/3.21/javascript/winccoa-manager',
+            '/opt/WinCC_OA/3.20/javascript/winccoa-manager',
+            '/opt/WinCC_OA/3.19/javascript/winccoa-manager'
+        ];
+
+        let winCCOAManagerPath: string | null = null;
+        for (const testPath of winCCOAPaths) {
+            try {
+                await fs.access(testPath);
+                winCCOAManagerPath = testPath;
+                ExtensionOutputChannel.info(`Found winccoa-manager at: ${testPath}`);
+                break;
+            } catch {
+                // Continue searching
+            }
+        }
+
+        if (!winCCOAManagerPath) {
+            throw new Error('WinCC OA installation not found. Please ensure WinCC OA is installed in /opt/WinCC_OA/');
+        }
+
+        // Install winccoa-manager via npm
+        ExtensionOutputChannel.info(`Installing winccoa-manager from: ${winCCOAManagerPath}`);
+        const installResult = await this.executeCommand(
+            'npm',
+            ['install', `file:${winCCOAManagerPath}`],
+            mcpPath
+        );
+
+        if (installResult.exitCode !== 0) {
+            throw new Error(`Failed to install winccoa-manager: ${installResult.stderr}`);
+        }
+
+        ExtensionOutputChannel.info('winccoa-manager installed successfully');
     }
 
     /**

@@ -40,7 +40,13 @@ export class WinCCOAChatParticipant {
         try {
             // Initialize client if needed
             if (!this.client) {
-                this.client = new McpClient(this.getMcpConfig());
+                const config = await this.getMcpConfig();
+                if (!config) {
+                    stream.markdown('❌ **No MCP Server configuration found**\n\n');
+                    stream.markdown('Please select a WinCC OA project with MCP Server installed.\n');
+                    return { errorDetails: { message: 'No MCP config' } };
+                }
+                this.client = new McpClient(config);
                 await this.client.initialize();
             }
 

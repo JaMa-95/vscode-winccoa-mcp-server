@@ -17,6 +17,9 @@
   "categories": [
     "Other"
   ],
+  "extensionDependencies": [
+    "RichardJanisch.winccoa-project-admin"
+  ],
   "keywords": [
     "wincc",
     "wincc oa",

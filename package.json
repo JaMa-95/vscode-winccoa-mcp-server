@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -201,7 +201,53 @@
           "required": ["scriptPath"]
         }
       }
-    ]
+    ],
+    "configuration": {
+      "title": "WinCC OA MCP Server",
+      "properties": {
+        "winccoa.mcp.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Log level for MCP Server Extension output",
+          "enumDescriptions": [
+            "Show all messages (debug, info, warnings, errors)",
+            "Show informational messages and above",
+            "Show warnings and errors only",
+            "Show errors only"
+          ]
+        },
+        "winccoa.mcp.autoReconnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically reconnect to MCP Server when connection is lost"
+        },
+        "winccoa.mcp.reconnectRetries": {
+          "type": "number",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Number of reconnection attempts before giving up (0-10)"
+        },
+        "winccoa.mcp.heartbeatInterval": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 5000,
+          "maximum": 300000,
+          "description": "Heartbeat check interval in milliseconds (5s - 5min)"
+        },
+        "winccoa.mcp.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show connection status notifications (reconnect success/failure)"
+        }
+      }
+    }
   },
   "devDependencies": {
     "@types/chai": "^5.2.3",

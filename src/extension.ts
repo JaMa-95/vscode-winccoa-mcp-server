@@ -200,12 +200,23 @@ function startConnectionMonitor(): void {
         connectionMonitor.stop();
     }
 
-    // Create new monitor with default config (will be configurable in 0.9.0)
+    // Get settings from VS Code configuration
+    const config = vscode.workspace.getConfiguration('winccoa.mcp');
+    const heartbeatInterval = config.get<number>('heartbeatInterval', 30000);
+    const reconnectRetries = config.get<number>('reconnectRetries', 3);
+    const autoReconnect = config.get<boolean>('autoReconnect', true);
+
+    ExtensionOutputChannel.debug(
+        `Connection Monitor Config: interval=${heartbeatInterval}ms, ` +
+        `retries=${reconnectRetries}, autoReconnect=${autoReconnect}`
+    );
+
+    // Create new monitor with user settings
     connectionMonitor = new ConnectionMonitor(
         {
-            heartbeatInterval: 30000,  // 30 seconds
-            reconnectRetries: 3,
-            autoReconnect: true
+            heartbeatInterval,
+            reconnectRetries,
+            autoReconnect
         },
         getClient,
         handleConnectionLost,
@@ -233,9 +244,14 @@ function handleReconnectSuccess(): void {
     ExtensionOutputChannel.info('✅ Auto-reconnect successful');
     statusBar.setStatus('connected');
     
-    vscode.window.showInformationMessage(
-        'MCP Server connection restored automatically'
-    );
+    const config = vscode.workspace.getConfiguration('winccoa.mcp');
+    const showNotifications = config.get<boolean>('showNotifications', true);
+    
+    if (showNotifications) {
+        vscode.window.showInformationMessage(
+            'MCP Server connection restored automatically'
+        );
+    }
 }
 
 /**
@@ -245,17 +261,22 @@ function handleReconnectFailed(): void {
     ExtensionOutputChannel.error('❌ Auto-reconnect failed after maximum retries');
     statusBar.setStatus('error', 'Reconnect failed');
     
-    vscode.window.showErrorMessage(
-        'MCP Server connection lost. Click to reconnect.',
-        'Reconnect',
-        'Show Logs'
-    ).then(selection => {
-        if (selection === 'Reconnect') {
-            vscode.commands.executeCommand('winccoa.mcp.reconnect');
-        } else if (selection === 'Show Logs') {
-            ExtensionOutputChannel.show();
-        }
-    });
+    const config = vscode.workspace.getConfiguration('winccoa.mcp');
+    const showNotifications = config.get<boolean>('showNotifications', true);
+    
+    if (showNotifications) {
+        vscode.window.showErrorMessage(
+            'MCP Server connection lost. Click to reconnect.',
+            'Reconnect',
+            'Show Logs'
+        ).then(selection => {
+            if (selection === 'Reconnect') {
+                vscode.commands.executeCommand('winccoa.mcp.reconnect');
+            } else if (selection === 'Show Logs') {
+                ExtensionOutputChannel.show();
+            }
+        });
+    }
 }
 
 /**

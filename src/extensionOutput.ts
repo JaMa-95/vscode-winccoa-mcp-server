@@ -5,6 +5,15 @@
 
 import * as vscode from 'vscode';
 
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const LOG_LEVEL_VALUES: Record<LogLevel, number> = {
+    debug: 0,
+    info: 1,
+    warn: 2,
+    error: 3
+};
+
 export class ExtensionOutputChannel {
     private static instance: vscode.OutputChannel;
 
@@ -24,19 +33,43 @@ export class ExtensionOutputChannel {
         this.getInstance().appendLine(`[${timestamp}] ${message}`);
     }
 
+    /**
+     * Get current log level from settings
+     */
+    private static getLogLevel(): LogLevel {
+        const config = vscode.workspace.getConfiguration('winccoa.mcp');
+        return config.get<LogLevel>('logLevel', 'info');
+    }
+
+    /**
+     * Check if message should be logged based on current log level
+     */
+    private static shouldLog(messageLevel: LogLevel): boolean {
+        const currentLevel = this.getLogLevel();
+        return LOG_LEVEL_VALUES[messageLevel] >= LOG_LEVEL_VALUES[currentLevel];
+    }
+
     static debug(message: string): void {
-        this.appendLine(`🔍 DEBUG: ${message}`);
+        if (this.shouldLog('debug')) {
+            this.appendLine(`🔍 DEBUG: ${message}`);
+        }
     }
 
     static info(message: string): void {
-        this.appendLine(`ℹ️  INFO: ${message}`);
+        if (this.shouldLog('info')) {
+            this.appendLine(`ℹ️  INFO: ${message}`);
+        }
     }
 
     static warn(message: string): void {
-        this.appendLine(`⚠️  WARN: ${message}`);
+        if (this.shouldLog('warn')) {
+            this.appendLine(`⚠️  WARN: ${message}`);
+        }
     }
 
     static error(message: string): void {
-        this.appendLine(`❌ ERROR: ${message}`);
+        if (this.shouldLog('error')) {
+            this.appendLine(`❌ ERROR: ${message}`);
+        }
     }
 }

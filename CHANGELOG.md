@@ -9,7 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - PMON integration with Core Extension (automatic manager registration)
-- User settings for log level, heartbeat interval, reconnect retries
+- Command cleanup for v1.0.0 (connect/disconnect instead of testConnection)
+
+## [0.9.0] - 2026-01-15
+
+### Added
+- **User Settings**: Configuration options in VS Code Settings UI
+  - `winccoa.mcp.logLevel`: Filter log output (debug, info, warn, error)
+  - `winccoa.mcp.autoReconnect`: Enable/disable automatic reconnection (default: true)
+  - `winccoa.mcp.reconnectRetries`: Configure retry attempts 0-10 (default: 3)
+  - `winccoa.mcp.heartbeatInterval`: Configure heartbeat check frequency 5s-5min (default: 30s)
+  - `winccoa.mcp.showNotifications`: Toggle reconnect notifications (default: true)
+- **Log Level Filtering**: ExtensionOutputChannel respects log level setting
+- **Settings Integration**: Connection monitor reads settings on startup
+
+### Changed
+- **startConnectionMonitor()**: Reads user settings instead of hardcoded values
+- **handleReconnectSuccess/Failed()**: Respect showNotifications setting
+- **ExtensionOutputChannel**: Added log level filtering logic
+
+### Fixed
+- **Log Spam**: Users can now reduce verbosity by setting logLevel to 'warn' or 'error'
 
 ## [0.8.0] - 2026-01-15
 

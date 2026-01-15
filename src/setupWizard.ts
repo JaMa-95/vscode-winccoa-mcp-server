@@ -9,6 +9,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import { ExtensionOutputChannel } from './extensionOutput';
+import { ManagerInstallationHelper } from './managerInstallationHelper';
 
 export class SetupWizard {
     private static readonly MCP_REPO_URL = 'https://github.com/winccoa/winccoa-ae-js-mcpserver.git';
@@ -75,15 +76,15 @@ export class SetupWizard {
                 progress.report({ increment: 100, message: 'Installation complete!' });
             });
 
-            // TODO: Add manager to PMON (requires Core Extension integration)
-            await vscode.window.showInformationMessage(
-                'MCP Server installed successfully! ⚠️ Manual step required: Add manager to PMON config.',
-                'Show Instructions'
-            ).then(selection => {
-                if (selection === 'Show Instructions') {
-                    this.showPmonInstructions(projectDir);
-                }
-            });
+            // Ask user for manager installation
+            const mcpServerPath = path.join(projectDir, this.MCP_SUBPATH, 'mcpWinCCOA');
+            const choice = await ManagerInstallationHelper.askUserForInstallation(mcpServerPath);
+            
+            if (choice === 'auto') {
+                await ManagerInstallationHelper.addManagerAutomatically(projectDir, mcpServerPath);
+            } else if (choice === 'manual') {
+                await ManagerInstallationHelper.showManualInstructions(projectDir, mcpServerPath);
+            }
 
             ExtensionOutputChannel.info('✅ MCP Server setup completed successfully');
             return true;

@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -127,7 +127,9 @@
               "description": "Search pattern with wildcards (e.g., '*Pump*', 'System1:*')"
             }
           },
-          "required": ["pattern"]
+          "required": [
+            "pattern"
+          ]
         }
       },
       {
@@ -146,7 +148,9 @@
               "description": "Datapoint element name (e.g., 'System1:Pump.state')"
             }
           },
-          "required": ["dpe"]
+          "required": [
+            "dpe"
+          ]
         }
       },
       {
@@ -183,7 +187,9 @@
               "description": "Name of the manager"
             }
           },
-          "required": ["managerName"]
+          "required": [
+            "managerName"
+          ]
         }
       },
       {
@@ -206,7 +212,9 @@
               "description": "Optional arguments to pass to the script"
             }
           },
-          "required": ["scriptPath"]
+          "required": [
+            "scriptPath"
+          ]
         }
       }
     ],
@@ -260,13 +268,14 @@
   "devDependencies": {
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.10.8",
     "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "@vscode/test-electron": "^2.3.9",
     "@vscode/vsce": "^3.7.1",
+    "@winccoa-tools-pack/npm-winccoa-core": "^0.1.1",
     "chai": "^6.2.2",
     "eslint": "^8.50.0",
     "glob": "^13.0.0",
@@ -274,6 +283,7 @@
     "mocha": "^11.7.5",
     "prettier": "^2.8.8",
     "sinon": "^21.0.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.2.0",
     "vscode-test": "^1.6.1"
   },

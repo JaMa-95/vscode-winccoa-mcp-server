@@ -7,8 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- PMON integration with Core Extension (automatic manager registration)
+## [1.1.0] - 2026-01-15
+
+### Added
+- **Automatic Manager Installation**: Post-setup dialog for WinCC OA manager configuration
+  - User choice: Automatic installation or manual instructions
+  - Automatic mode: Writes manager to `config/progs` file with restart reminder
+  - Manual mode: Shows comprehensive setup instructions in webview panel
+- **Smart Manager Number Assignment**: Automatically finds next free `-num X` number
+  - Scans existing managers for used numbers
+  - Prevents conflicts with existing manager numbers
+- **Manager Configuration Writer**: File-based manager entry creation
+  - Writes directly to `config/progs` file for persistence
+  - Proper formatting matching WinCC OA expectations
+  - Duplicate detection to prevent multiple entries
+- **Comprehensive Manual Instructions**: Two setup methods provided
+  - **Option 1 (Recommended)**: Via PMON Console with exact configuration values
+  - **Option 2**: Direct `config/progs` file editing with formatted entry
+  - Copy-ready manager options string for easy setup
+
+### Changed
+- **Setup Wizard**: Replaced TODO with integrated manager installation workflow
+  - Post-installation manager setup dialog
+  - Clear restart requirements communicated to user
+- **Manager Options Format**: Uses `-num X mcpServer <path>` format
+  - Follows WinCC OA JavaScript manager conventions
+  - Auto-assigns next free manager number
+
+### Technical Notes
+- **PMON Runtime Limitation**: PMON `SINGLE_MGR:INS` command is runtime-only, does NOT persist to config
+- **File-Based Approach**: Direct `config/progs` writing is the only way to persistently add managers
+- **Restart Requirement**: WinCC OA project must be restarted for new managers to appear in PMON
 
 ## [1.0.0] - 2026-01-15
 

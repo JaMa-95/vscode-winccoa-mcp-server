@@ -31,6 +31,13 @@ export class StatusBarManager {
     }
 
     /**
+     * Get current status
+     */
+    getCurrentStatus(): McpServerStatus {
+        return this.currentStatus;
+    }
+
+    /**
      * Update status bar display
      */
     private updateDisplay(message?: string): void {

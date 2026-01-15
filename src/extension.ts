@@ -82,9 +82,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Register commands
     context.subscriptions.push(
         vscode.commands.registerCommand('winccoa.mcp.showMenu', showMenu),
-        vscode.commands.registerCommand('winccoa.mcp.testConnection', testConnection),
-        vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
+        vscode.commands.registerCommand('winccoa.mcp.connect', connect),
+        vscode.commands.registerCommand('winccoa.mcp.disconnect', disconnect),
         vscode.commands.registerCommand('winccoa.mcp.reconnect', reconnect),
+        vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
         vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show()),
         vscode.commands.registerCommand('winccoa.mcp.executeScript', executeScript),
         vscode.commands.registerCommand('winccoa.mcp.runSetup', runSetup)
@@ -283,21 +284,54 @@ function handleReconnectFailed(): void {
  * Show Status Bar Quick Pick Menu
  */
 async function showMenu(): Promise<void> {
-    const items: vscode.QuickPickItem[] = [
-        {
-            label: '$(testing-run-icon) Test Connection',
-            description: 'Test connection to MCP Server',
-            detail: 'Check if MCP Server is reachable'
-        },
-        {
-            label: '$(info) Show Server Info',
-            description: 'Display server details',
-            detail: 'Shows server version and available tools'
-        }
-    ];
+    const isConnected = mcpClient !== null;
+    const status = statusBar.getCurrentStatus();
+    
+    // Build context-sensitive menu items
+    const items: vscode.QuickPickItem[] = [];
+    
+    if (isConnected) {
+        items.push(
+            {
+                label: '$(info) Show Server Info',
+                description: 'Display server details',
+                detail: 'Shows server version and available tools'
+            },
+            {
+                label: '$(debug-disconnect) Disconnect',
+                description: 'Disconnect from MCP Server',
+                detail: 'Stop MCP Server connection'
+            },
+            {
+                label: '$(sync) Reconnect',
+                description: 'Reconnect to MCP Server',
+                detail: 'Force reconnection'
+            }
+        );
+    } else {
+        items.push(
+            {
+                label: '$(plug) Connect',
+                description: 'Connect to MCP Server',
+                detail: 'Establish connection to MCP Server'
+            },
+            {
+                label: '$(tools) Run Setup',
+                description: 'Install MCP Server',
+                detail: 'Setup MCP Server in WinCC OA project'
+            }
+        );
+    }
+    
+    // Always show logs
+    items.push({
+        label: '$(output) Show Logs',
+        description: 'Open extension output',
+        detail: 'View debug logs and messages'
+    });
 
     const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'MCP Server Actions',
+        placeHolder: `MCP Server Actions (${isConnected ? 'Connected' : 'Disconnected'})`,
         title: 'WinCC OA MCP Server'
     });
 
@@ -306,10 +340,18 @@ async function showMenu(): Promise<void> {
     }
 
     // Execute command based on selection
-    if (selected.label.includes('Test Connection')) {
-        await vscode.commands.executeCommand('winccoa.mcp.testConnection');
+    if (selected.label.includes('Connect')) {
+        await vscode.commands.executeCommand('winccoa.mcp.connect');
+    } else if (selected.label.includes('Disconnect')) {
+        await vscode.commands.executeCommand('winccoa.mcp.disconnect');
+    } else if (selected.label.includes('Reconnect')) {
+        await vscode.commands.executeCommand('winccoa.mcp.reconnect');
     } else if (selected.label.includes('Server Info')) {
         await vscode.commands.executeCommand('winccoa.mcp.showInfo');
+    } else if (selected.label.includes('Run Setup')) {
+        await vscode.commands.executeCommand('winccoa.mcp.runSetup');
+    } else if (selected.label.includes('Show Logs')) {
+        ExtensionOutputChannel.show();
     }
 }
 
@@ -336,25 +378,59 @@ async function showServerInfo(): Promise<void> {
         statusBar.setStatus('connected');
         statusBar.setConnectionInfo(initResult.serverInfo.name, tools.length);
 
-        // Build info message
-        const toolsList = tools.map((t, i) => `${i + 1}. ${t.name}`).join('\n');
-        const resourcesList = resources.map((r, i) => `${i + 1}. ${r.uri}`).join('\n');
+        // Build QuickPick items
+        const items: vscode.QuickPickItem[] = [
+            {
+                label: '$(server) Server Information',
+                kind: vscode.QuickPickItemKind.Separator
+            },
+            {
+                label: '$(project) Project',
+                description: config.projectName || 'Unknown',
+                detail: `WinCC OA Project`
+            },
+            {
+                label: '$(server-process) Server',
+                description: `${initResult.serverInfo.name} ${initResult.serverInfo.version}`,
+                detail: `MCP Server Implementation`
+            },
+            {
+                label: '$(plug) Protocol',
+                description: initResult.protocolVersion,
+                detail: `Model Context Protocol Version`
+            },
+            {
+                label: '$(globe) URL',
+                description: config.url,
+                detail: `MCP Server Endpoint`
+            },
+            {
+                label: '$(tools) Available Tools',
+                kind: vscode.QuickPickItemKind.Separator
+            },
+            ...tools.map(t => ({
+                label: `$(symbol-method) ${t.name}`,
+                description: t.description?.split('\n')[0] || '',
+                detail: t.description?.split('\n').slice(1).join(' ') || 'No description'
+            })),
+            {
+                label: '$(folder) Available Resources',
+                kind: vscode.QuickPickItemKind.Separator
+            },
+            ...resources.map(r => ({
+                label: `$(file) ${r.name || r.uri}`,
+                description: r.uri,
+                detail: r.description || r.mimeType || 'No description'
+            }))
+        ];
 
-        const infoMessage = 
-            `📡 MCP Server Information\n\n` +
-            `Project: ${config.projectName || 'Unknown'}\n` +
-            `Server: ${initResult.serverInfo.name} ${initResult.serverInfo.version}\n` +
-            `Protocol: ${initResult.protocolVersion}\n` +
-            `URL: ${config.url}\n\n` +
-            `Available Tools (${tools.length}):\n${toolsList}\n\n` +
-            `Available Resources (${resources.length}):\n${resourcesList}`;
-
-        // Show in new document
-        const doc = await vscode.workspace.openTextDocument({
-            content: infoMessage,
-            language: 'plaintext'
+        // Show QuickPick (non-interactive, just for display)
+        await vscode.window.showQuickPick(items, {
+            title: `$(wand) WinCC OA MCP Server - ${config.projectName || 'Unknown'}`,
+            placeHolder: `${tools.length} tools, ${resources.length} resources available`,
+            matchOnDescription: true,
+            matchOnDetail: true
         });
-        await vscode.window.showTextDocument(doc, { preview: false });
 
         ExtensionOutputChannel.info('Server info retrieved successfully');
 
@@ -506,62 +582,81 @@ async function handleDetectionError(error?: string): Promise<void> {
 }
 
 /**
- * Test MCP Server Connection
+ * Connect to MCP Server
  */
-async function testConnection(): Promise<void> {
+async function connect(): Promise<void> {
     try {
-        statusBar.setStatus('connecting', 'Testing connection...');
-
-        // Use existing client or create new one
-        let client = getClient();
-        let config = currentConfig;
-        
-        if (!client) {
-            // No client, detect config and create
-            const detected = await configDetector.detectConfig();
-            if (!detected.config) {
-                statusBar.setStatus('error', 'No config available');
-                return;
-            }
-            config = detected.config;
-            client = await createClient(config);
+        // If already connected, show info
+        if (mcpClient) {
+            vscode.window.showInformationMessage(
+                'Already connected to MCP Server',
+                'Show Info',
+                'Reconnect'
+            ).then(selection => {
+                if (selection === 'Show Info') {
+                    vscode.commands.executeCommand('winccoa.mcp.showInfo');
+                } else if (selection === 'Reconnect') {
+                    vscode.commands.executeCommand('winccoa.mcp.reconnect');
+                }
+            });
+            return;
         }
+
+        statusBar.setStatus('connecting', 'Connecting...');
+
+        const { config, error } = await configDetector.detectConfig();
         
+        if (!config) {
+            await handleDetectionError(error);
+            statusBar.setStatus('error');
+            return;
+        }
+
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: 'Testing MCP Server Connection',
+            title: 'Connecting to MCP Server',
             cancellable: false
         }, async (progress) => {
             progress.report({ message: 'Connecting...' });
             
-            const isConnected = await client.testConnection();
+            await createClient(config);
             
-            if (isConnected && config) {
-                progress.report({ message: 'Initializing...' });
-                const initResult = await client.initialize();
-                
-                progress.report({ message: 'Listing tools...' });
-                const tools = await client.listTools();
-                
-                statusBar.setStatus('connected');
-                statusBar.setConnectionInfo(initResult.serverInfo.name, tools.length);
-
-                vscode.window.showInformationMessage(
-                    `✅ MCP Server Connected!\n` +
-                    `Project: ${config.projectName || 'Unknown'}\n` +
-                    `Server: ${initResult.serverInfo.name} ${initResult.serverInfo.version}\n` +
-                    `Tools: ${tools.length}`
-                );
-            } else {
-                statusBar.setStatus('error', 'Connection failed');
-                vscode.window.showErrorMessage('❌ MCP Server connection failed');
-            }
+            progress.report({ message: 'Connected!' });
+            
+            statusBar.setStatus('connected');
+            
+            vscode.window.showInformationMessage(
+                `✅ Connected to ${config.projectName || 'WinCC OA'} MCP Server`
+            );
         });
         
     } catch (error: any) {
         statusBar.setStatus('error', 'Connection failed');
-        ExtensionOutputChannel.error(`testConnection error: ${error.message}`);
-        vscode.window.showErrorMessage(`MCP Connection Error: ${error.message}`);
+        ExtensionOutputChannel.error(`Connect error: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
+    }
+}
+
+/**
+ * Disconnect from MCP Server
+ */
+async function disconnect(): Promise<void> {
+    if (!mcpClient) {
+        vscode.window.showInformationMessage('Already disconnected from MCP Server');
+        return;
+    }
+
+    try {
+        ExtensionOutputChannel.info('Manual disconnect triggered...');
+        
+        await disposeClient();
+        statusBar.setStatus('disconnected');
+        
+        vscode.window.showInformationMessage('Disconnected from MCP Server');
+        
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`Disconnect error: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to disconnect: ${error.message}`);
     }
 }
 

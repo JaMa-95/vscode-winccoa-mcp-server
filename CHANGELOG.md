@@ -9,7 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - PMON integration with Core Extension (automatic manager registration)
-- Command cleanup for v1.0.0 (connect/disconnect instead of testConnection)
+
+## [1.0.0] - 2026-01-15
+
+### Added
+- **connect command**: Manual connection to MCP Server with already-connected detection
+- **disconnect command**: Manual disconnection from MCP Server
+- **Context-Sensitive Menu**: showMenu() displays different options based on connection status
+  - Connected: Show Server Info, Disconnect, Reconnect, Show Logs
+  - Disconnected: Connect, Run Setup, Show Logs
+
+### Changed
+- **Command Structure**: Simplified and more semantic command naming
+  - `testConnection` → `connect` (more intuitive)
+  - Added explicit `disconnect` command
+  - All commands properly documented
+- **showMenu()**: Now context-aware, shows relevant actions only
+- **Status Bar**: getCurrentStatus() method for context detection
+
+### Removed
+- **testConnection command**: Replaced by more semantic `connect` command
+
+### Fixed
+- **Command Naming**: "Test Connection" was confusing (it actually connected, not just tested)
 
 ## [0.9.0] - 2026-01-15
 

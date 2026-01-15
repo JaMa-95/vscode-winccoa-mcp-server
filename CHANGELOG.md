@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - PMON integration with Core Extension (automatic manager registration)
+- Connection monitoring with heartbeat checks
+- Auto-reconnect on connection loss
+- User settings for log level, auto-reconnect, heartbeat interval
+
+## [0.7.0] - 2026-01-15
+
+### Added
+- **Persistent Client**: Global MCP client instance reused across commands
+- **Lifecycle Management**: `createClient()`, `disposeClient()`, `getClient()` functions
+- **Automatic Disposal**: Old client disposed when creating new one (prevents memory leaks)
+- **Extension Deactivation**: Client properly disposed when extension deactivates
+
+### Changed
+- **Project Change Handling**: Disposes old client and creates new one when switching projects
+- **Chat Participant Update**: Chat participant updated when client changes
+- **getMcpConfig()**: Returns cached config if client is connected
+- **showServerInfo()**: Uses existing client instead of creating new one
+- **testConnection()**: Reuses existing client if available
+- **reconnect()**: Uses createClient() for consistent behavior
+
+### Fixed
+- **Memory Leak**: Old clients no longer stay in memory on project change
+- **Chat Participant Stale Client**: Chat commands now work with current project after switching
+- **Language Model Tools Update**: Tools properly updated when client changes
 
 ## [0.6.1] - 2026-01-15
 

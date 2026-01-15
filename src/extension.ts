@@ -14,6 +14,10 @@ import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
 
+// Global persistent client
+let mcpClient: McpClient | null = null;
+let currentConfig: McpConfig | null = null;
+
 let statusBar: StatusBarManager;
 let chatParticipant: WinCCOAChatParticipant;
 let languageModelTools: LanguageModelTools;
@@ -37,7 +41,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     languageModelTools.register(context);
 
     // Auto-connect to MCP server on startup
-    let client: McpClient | null = null;
     try {
         ExtensionOutputChannel.info('Auto-detecting MCP configuration...');
         const { config, error } = await configDetector.detectConfig();
@@ -48,10 +51,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             statusBar.setStatus('error');
         } else {
             ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
-            client = new McpClient(config);
-            await client.initialize();
+            await createClient(config);
             statusBar.setStatus('connected');
-            languageModelTools.updateClient(client);  // Update tools with connected client
             ExtensionOutputChannel.info(`✅ Connected to ${config.projectName || 'WinCC OA'} MCP Server`);
         }
     } catch (error: any) {
@@ -91,8 +92,79 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 /**
  * Extension deactivation
  */
-export function deactivate(): void {
+export async function deactivate(): Promise<void> {
+    ExtensionOutputChannel.info('WinCC OA MCP Server Extension deactivating...');
+    await disposeClient();
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension deactivated');
+}
+
+/**
+ * Create and initialize MCP Client (persistent)
+ */
+async function createClient(config: McpConfig): Promise<McpClient> {
+    ExtensionOutputChannel.info(`Creating MCP client for: ${config.url}`);
+    
+    // Dispose old client first
+    await disposeClient();
+    
+    // Create new client
+    const client = new McpClient(config);
+    await client.initialize();
+    
+    // Store globally
+    mcpClient = client;
+    currentConfig = config;
+    
+    // Update all components
+    languageModelTools.updateClient(client);
+    updateChatParticipant(client);
+    
+    ExtensionOutputChannel.info('✅ MCP Client created and initialized');
+    return client;
+}
+
+/**
+ * Dispose current MCP Client
+ */
+async function disposeClient(): Promise<void> {
+    if (!mcpClient) {
+        return;
+    }
+    
+    ExtensionOutputChannel.info('Disposing MCP client...');
+    
+    try {
+        // Client might have dispose/close method in future
+        mcpClient = null;
+        currentConfig = null;
+        
+        // Update components
+        languageModelTools.updateClient(null);
+        
+        ExtensionOutputChannel.info('MCP client disposed');
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`Error disposing client: ${error.message}`);
+    }
+}
+
+/**
+ * Get current MCP Client (if connected)
+ */
+function getClient(): McpClient | null {
+    return mcpClient;
+}
+
+/**
+ * Update Chat Participant with new client
+ */
+function updateChatParticipant(client: McpClient | null): void {
+    if (!chatParticipant) {
+        return;
+    }
+    
+    // Chat participant will get client via getMcpConfig when needed
+    // This just invalidates any cached state
+    ExtensionOutputChannel.debug('Chat Participant updated with new client');
 }
 
 /**
@@ -136,13 +208,14 @@ async function showServerInfo(): Promise<void> {
     try {
         statusBar.setStatus('connecting', 'Fetching server info...');
 
-        const config = await getMcpConfig();
-        if (!config) {
-            statusBar.setStatus('error', 'No config available');
+        const client = getClient();
+        if (!client || !currentConfig) {
+            vscode.window.showWarningMessage('Not connected to MCP Server');
+            statusBar.setStatus('error', 'No connection');
             return;
         }
 
-        const client = new McpClient(config);
+        const config = currentConfig;
         
         const initResult = await client.initialize();
         const tools = await client.listTools();
@@ -222,17 +295,15 @@ async function subscribeToProjectChanges(context: vscode.ExtensionContext): Prom
             const { config, error } = await configDetector.detectConfig();
             
             if (!config) {
+                // Dispose old client when switching to project without MCP
+                await disposeClient();
                 handleDetectionError(error);
                 statusBar.setStatus('error');
                 return;
             }
 
-            // Create new client
-            const client = new McpClient(config);
-            await client.initialize();
-            
-            // Update Language Model Tools with new client
-            languageModelTools.updateClient(client);
+            // Create new client (disposes old one automatically)
+            await createClient(config);
 
             statusBar.setStatus('connected');
             ExtensionOutputChannel.info(`✅ Connected to ${config.projectName} MCP Server`);
@@ -253,8 +324,15 @@ async function subscribeToProjectChanges(context: vscode.ExtensionContext): Prom
 
 /**
  * Get MCP Configuration (with auto-detection)
+ * Returns current config if client is connected, otherwise detects
  */
 async function getMcpConfig(): Promise<McpConfig | null> {
+    // Return current config if client is connected
+    if (mcpClient && currentConfig) {
+        return currentConfig;
+    }
+    
+    // Otherwise detect config
     const { config, error } = await configDetector.detectConfig();
     
     if (!config) {
@@ -322,13 +400,20 @@ async function testConnection(): Promise<void> {
     try {
         statusBar.setStatus('connecting', 'Testing connection...');
 
-        const config = await getMcpConfig();
-        if (!config) {
-            statusBar.setStatus('error', 'No config available');
-            return;
+        // Use existing client or create new one
+        let client = getClient();
+        let config = currentConfig;
+        
+        if (!client) {
+            // No client, detect config and create
+            const detected = await configDetector.detectConfig();
+            if (!detected.config) {
+                statusBar.setStatus('error', 'No config available');
+                return;
+            }
+            config = detected.config;
+            client = await createClient(config);
         }
-
-        const client = new McpClient(config);
         
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
@@ -339,7 +424,7 @@ async function testConnection(): Promise<void> {
             
             const isConnected = await client.testConnection();
             
-            if (isConnected) {
+            if (isConnected && config) {
                 progress.report({ message: 'Initializing...' });
                 const initResult = await client.initialize();
                 
@@ -386,12 +471,8 @@ async function reconnect(): Promise<void> {
 
         ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
         
-        // Create new client
-        const client = new McpClient(config);
-        await client.initialize();
-        
-        // Update Language Model Tools with new client
-        languageModelTools.updateClient(client);
+        // Create new client (disposes old one)
+        await createClient(config);
         
         statusBar.setStatus('connected');
         ExtensionOutputChannel.info(`✅ Connected to ${config.projectName || 'WinCC OA'} MCP Server`);

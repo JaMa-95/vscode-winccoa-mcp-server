@@ -1,6 +1,6 @@
 # WinCC OA MCP Server
 
-![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.7.0-blue.svg)
 
 ## Motivation
 

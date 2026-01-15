@@ -18,7 +18,7 @@ export class LanguageModelTools {
     /**
      * Update MCP Client (e.g., after project change)
      */
-    updateClient(client: McpClient): void {
+    updateClient(client: McpClient | null): void {
         this.client = client;
         ExtensionOutputChannel.debug('Language Model Tools: Client updated');
     }

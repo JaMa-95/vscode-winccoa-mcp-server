@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - PMON integration with Core Extension (automatic manager registration)
 
+## [0.6.1] - 2026-01-15
+
+### Fixed
+- **Chat Participant async/sync mismatch**: `getMcpConfig()` is now properly awaited in `handleRequest()` to prevent "Cannot use 'in' operator" error
+- **Reconnect command**: Now creates new `McpClient` instance instead of reusing non-existent client after setup
+- **Client initialization**: Chat Participant properly initializes MCP client with awaited config
+
+### Changed
+- Chat Participant constructor receives config getter function, client created on-demand in handleRequest
+- Reconnect command now properly instantiates client, initializes connection, and updates Language Model Tools
+
 ## [0.6.0] - 2026-01-13
 
 ### Added

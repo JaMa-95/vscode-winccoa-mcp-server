@@ -13,10 +13,14 @@ import { WinCCOAChatParticipant } from './chatParticipant';
 import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
+import { ConnectionMonitor } from './connectionMonitor';
 
 // Global persistent client
 let mcpClient: McpClient | null = null;
 let currentConfig: McpConfig | null = null;
+
+// Connection Monitor
+let connectionMonitor: ConnectionMonitor | null = null;
 
 let statusBar: StatusBarManager;
 let chatParticipant: WinCCOAChatParticipant;
@@ -94,6 +98,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
  */
 export async function deactivate(): Promise<void> {
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension deactivating...');
+    
+    // Stop connection monitor
+    if (connectionMonitor) {
+        connectionMonitor.stop();
+    }
+    
     await disposeClient();
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension deactivated');
 }
@@ -119,6 +129,9 @@ async function createClient(config: McpConfig): Promise<McpClient> {
     languageModelTools.updateClient(client);
     updateChatParticipant(client);
     
+    // Start connection monitoring
+    startConnectionMonitor();
+    
     ExtensionOutputChannel.info('✅ MCP Client created and initialized');
     return client;
 }
@@ -132,6 +145,12 @@ async function disposeClient(): Promise<void> {
     }
     
     ExtensionOutputChannel.info('Disposing MCP client...');
+    
+    // Stop connection monitor
+    if (connectionMonitor) {
+        connectionMonitor.stop();
+        connectionMonitor = null;
+    }
     
     try {
         // Client might have dispose/close method in future
@@ -165,6 +184,78 @@ function updateChatParticipant(client: McpClient | null): void {
     // Chat participant will get client via getMcpConfig when needed
     // This just invalidates any cached state
     ExtensionOutputChannel.debug('Chat Participant updated with new client');
+}
+
+/**
+ * Start Connection Monitor for current client
+ */
+function startConnectionMonitor(): void {
+    if (!mcpClient) {
+        ExtensionOutputChannel.warn('Connection Monitor: Cannot start - no client');
+        return;
+    }
+
+    // Stop existing monitor
+    if (connectionMonitor) {
+        connectionMonitor.stop();
+    }
+
+    // Create new monitor with default config (will be configurable in 0.9.0)
+    connectionMonitor = new ConnectionMonitor(
+        {
+            heartbeatInterval: 30000,  // 30 seconds
+            reconnectRetries: 3,
+            autoReconnect: true
+        },
+        getClient,
+        handleConnectionLost,
+        handleReconnectSuccess,
+        handleReconnectFailed
+    );
+
+    connectionMonitor.start();
+}
+
+/**
+ * Handle connection lost event
+ */
+async function handleConnectionLost(): Promise<void> {
+    ExtensionOutputChannel.warn('⚠️ Connection lost to MCP Server');
+    statusBar.setStatus('error', 'Connection lost');
+    
+    // Don't show notification here - wait for auto-reconnect result
+}
+
+/**
+ * Handle successful reconnect
+ */
+function handleReconnectSuccess(): void {
+    ExtensionOutputChannel.info('✅ Auto-reconnect successful');
+    statusBar.setStatus('connected');
+    
+    vscode.window.showInformationMessage(
+        'MCP Server connection restored automatically'
+    );
+}
+
+/**
+ * Handle failed reconnect
+ */
+function handleReconnectFailed(): void {
+    ExtensionOutputChannel.error('❌ Auto-reconnect failed after maximum retries');
+    statusBar.setStatus('error', 'Reconnect failed');
+    
+    vscode.window.showErrorMessage(
+        'MCP Server connection lost. Click to reconnect.',
+        'Reconnect',
+        'Show Logs'
+    ).then(selection => {
+        if (selection === 'Reconnect') {
+            vscode.commands.executeCommand('winccoa.mcp.reconnect');
+        } else if (selection === 'Show Logs') {
+            ExtensionOutputChannel.show();
+        }
+    });
 }
 
 /**
@@ -471,8 +562,13 @@ async function reconnect(): Promise<void> {
 
         ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
         
-        // Create new client (disposes old one)
+        // Create new client (disposes old one, starts new monitor)
         await createClient(config);
+        
+        // Reset monitor reconnect attempts
+        if (connectionMonitor) {
+            connectionMonitor.reset();
+        }
         
         statusBar.setStatus('connected');
         ExtensionOutputChannel.info(`✅ Connected to ${config.projectName || 'WinCC OA'} MCP Server`);

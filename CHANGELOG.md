@@ -9,9 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - PMON integration with Core Extension (automatic manager registration)
-- Connection monitoring with heartbeat checks
-- Auto-reconnect on connection loss
-- User settings for log level, auto-reconnect, heartbeat interval
+- User settings for log level, heartbeat interval, reconnect retries
+
+## [0.8.0] - 2026-01-15
+
+### Added
+- **Connection Monitor**: Heartbeat-based connection monitoring with 30s interval (hardcoded, configurable in 0.9.0)
+- **Auto-Reconnect**: Automatic reconnection on connection loss with exponential backoff (2s, 4s, 8s)
+- **Reconnect Retries**: Up to 3 automatic reconnect attempts before giving up
+- **Connection Status**: New status states: connected, disconnected, reconnecting, error
+- **User Notifications**: Auto-reconnect success/failure messages
+
+### Changed
+- **createClient()**: Now starts connection monitoring automatically
+- **disposeClient()**: Stops connection monitor when disposing client
+- **reconnect()**: Resets monitor reconnect attempts on manual reconnect
+- **Extension Deactivate**: Stops connection monitor on extension shutdown
+
+### Fixed
+- **Silent Connection Loss**: Extension now detects when MCP Server becomes unavailable
+- **Connection Failures**: Automatic recovery attempts with user notification
 
 ## [0.7.0] - 2026-01-15
 

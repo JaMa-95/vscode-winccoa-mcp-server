@@ -9,7 +9,6 @@ import * as vscode from 'vscode';
 import { McpClient } from './mcpClient';
 import { ExtensionOutputChannel } from './extensionOutput';
 import { StatusBarManager } from './statusBar';
-import { WinCCOAChatParticipant } from './chatParticipant';
 import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
@@ -23,7 +22,6 @@ let currentConfig: McpConfig | null = null;
 let connectionMonitor: ConnectionMonitor | null = null;
 
 let statusBar: StatusBarManager;
-let chatParticipant: WinCCOAChatParticipant;
 let languageModelTools: LanguageModelTools;
 let configDetector: ProjectConfigDetector;
 
@@ -74,10 +72,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Subscribe to Project Admin project changes
     await subscribeToProjectChanges(context);
-
-    // Initialize Chat Participant
-    chatParticipant = new WinCCOAChatParticipant(getMcpConfig);
-    chatParticipant.register(context);
 
     // Register commands
     context.subscriptions.push(
@@ -173,19 +167,6 @@ async function disposeClient(): Promise<void> {
  */
 function getClient(): McpClient | null {
     return mcpClient;
-}
-
-/**
- * Update Chat Participant with new client
- */
-function updateChatParticipant(client: McpClient | null): void {
-    if (!chatParticipant) {
-        return;
-    }
-    
-    // Chat participant will get client via getMcpConfig when needed
-    // This just invalidates any cached state
-    ExtensionOutputChannel.debug('Chat Participant updated with new client');
 }
 
 /**

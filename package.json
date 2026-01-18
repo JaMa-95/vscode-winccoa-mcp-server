@@ -74,40 +74,6 @@
         "title": "WinCC OA: Reset & Reinstall MCP Server"
       }
     ],
-    "chatParticipants": [
-      {
-        "id": "winccoa",
-        "name": "winccoa",
-        "description": "Interact with WinCC OA projects via MCP Server",
-        "isSticky": true,
-        "commands": [
-          {
-            "name": "managers",
-            "description": "List all WinCC OA managers"
-          },
-          {
-            "name": "datapoints",
-            "description": "Search datapoints by pattern"
-          },
-          {
-            "name": "get",
-            "description": "Get current value of a datapoint element"
-          },
-          {
-            "name": "dptypes",
-            "description": "List datapoint types"
-          },
-          {
-            "name": "tools",
-            "description": "List available MCP tools"
-          },
-          {
-            "name": "help",
-            "description": "Show help and examples"
-          }
-        ]
-      }
-    ],
     "languageModelTools": [
       {
         "name": "winccoa_list_managers",

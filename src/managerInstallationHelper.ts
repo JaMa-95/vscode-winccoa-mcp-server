@@ -77,7 +77,7 @@ export class ManagerInstallationHelper {
                 secKill: 30,
                 restartCount: 3,
                 resetMin: 1,
-                options: `mcpServer ${scriptPath}`
+                options: scriptPath
                 // managerNumber will be auto-assigned
             };
             

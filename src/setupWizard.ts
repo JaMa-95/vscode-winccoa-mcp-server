@@ -29,6 +29,67 @@ export class SetupWizard {
     }
 
     /**
+     * Reset MCP Server (delete folder) and reinstall
+     */
+    static async resetAndReinstall(projectDir: string, projectName: string): Promise<boolean> {
+        ExtensionOutputChannel.info(`Resetting MCP Server for project: ${projectName}`);
+
+        const mcpPath = path.join(projectDir, this.MCP_SUBPATH);
+
+        try {
+            // Step 1: Check if MCP Server exists
+            const isInstalled = await this.isMcpServerInstalled(projectDir);
+            if (!isInstalled) {
+                ExtensionOutputChannel.info('MCP Server not installed - running setup instead');
+                return await this.runSetup(projectDir, projectName);
+            }
+
+            // Step 2: Delete MCP Server folder
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Resetting MCP Server for ${projectName}`,
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0, message: 'Deleting MCP Server folder...' });
+                
+                try {
+                    await fs.rm(mcpPath, { recursive: true, force: true });
+                    ExtensionOutputChannel.info(`Deleted folder: ${mcpPath}`);
+                } catch (error: any) {
+                    ExtensionOutputChannel.warn(`Could not delete folder (may not exist): ${error.message}`);
+                }
+
+                progress.report({ increment: 20, message: 'Cloning repository...' });
+                await this.cloneRepository(projectDir);
+
+                progress.report({ increment: 40, message: 'Installing dependencies...' });
+                await this.installDependencies(projectDir);
+
+                progress.report({ increment: 60, message: 'Generating security token...' });
+                const token = this.generateToken();
+
+                progress.report({ increment: 70, message: 'Creating configuration...' });
+                await this.createEnvFile(projectDir, token);
+
+                progress.report({ increment: 90, message: 'Building MCP Server...' });
+                await this.buildMcpServer(projectDir);
+
+                progress.report({ increment: 100, message: 'Reset complete!' });
+            });
+
+            ExtensionOutputChannel.info('✅ MCP Server reset and reinstalled successfully');
+            ExtensionOutputChannel.info('Note: Manager entry in config/progs was NOT modified');
+
+            return true;
+
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Reset failed: ${error.message}`);
+            vscode.window.showErrorMessage(`MCP Server reset failed: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
      * Run auto-setup wizard
      */
     static async runSetup(projectDir: string, projectName: string): Promise<boolean> {

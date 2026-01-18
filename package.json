@@ -68,6 +68,10 @@
       {
         "command": "winccoa.mcp.runSetup",
         "title": "WinCC OA: Run MCP Server Setup Wizard"
+      },
+      {
+        "command": "winccoa.mcp.resetAndReinstall",
+        "title": "WinCC OA: Reset & Reinstall MCP Server"
       }
     ],
     "chatParticipants": [

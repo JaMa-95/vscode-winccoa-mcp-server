@@ -1,10 +1,5 @@
 {
-	"folders": [
-		{
-			"name": "DevEnv",
-			"path": "../../wincc_proj/DevEnv"
-		}
-	],
+	"folders": [],
 	"settings": {
 		"workbench.colorCustomizations": {
 			"activityBar.background": "#3D1F66",

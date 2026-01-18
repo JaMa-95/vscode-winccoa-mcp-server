@@ -88,7 +88,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand('winccoa.mcp.showInfo', showServerInfo),
         vscode.commands.registerCommand('winccoa.mcp.showOutput', () => ExtensionOutputChannel.show()),
         vscode.commands.registerCommand('winccoa.mcp.executeScript', executeScript),
-        vscode.commands.registerCommand('winccoa.mcp.runSetup', runSetup)
+        vscode.commands.registerCommand('winccoa.mcp.runSetup', runSetup),
+        vscode.commands.registerCommand('winccoa.mcp.resetAndReinstall', resetAndReinstall)
     );
 
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
@@ -786,13 +787,29 @@ async function runSetup(): Promise<void> {
         // Check if already installed
         const isInstalled = await SetupWizard.isMcpServerInstalled(projectPath);
         if (isInstalled) {
-            vscode.window.showInformationMessage(
-                `MCP Server already installed in project "${project.name}"`
+            const answer = await vscode.window.showWarningMessage(
+                `MCP Server already installed in project "${project.name}".\n\nDo you want to delete and reinstall?`,
+                { modal: true },
+                'Yes, Reinstall',
+                'Cancel'
             );
+            
+            if (answer !== 'Yes, Reinstall') {
+                ExtensionOutputChannel.info('Setup cancelled - MCP Server already installed');
+                return;
+            }
+            
+            // User wants to reinstall - call resetAndReinstall
+            const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id);
+            
+            if (success) {
+                configDetector.invalidateCache();
+                await vscode.commands.executeCommand('winccoa.mcp.reconnect');
+            }
             return;
         }
 
-        // Run setup wizard
+        // Run setup wizard (fresh install)
         const success = await SetupWizard.runSetup(projectPath, project.name || project.id);
         
         if (success) {
@@ -803,5 +820,76 @@ async function runSetup(): Promise<void> {
     } catch (error: any) {
         ExtensionOutputChannel.error(`Setup wizard error: ${error.message}`);
         vscode.window.showErrorMessage(`Setup failed: ${error.message}`);
+    }
+}
+
+/**
+ * Reset MCP Server (delete folder) and reinstall
+ */
+async function resetAndReinstall(): Promise<void> {
+    try {
+        ExtensionOutputChannel.info('Reset & Reinstall MCP Server...');
+
+        // Get active project from Project Admin Extension
+        const projectAdminExt = vscode.extensions.getExtension('RichardJanisch.winccoa-project-admin');
+        if (!projectAdminExt) {
+            vscode.window.showErrorMessage(
+                'WinCC OA Project Admin Extension required for reset',
+                'Install Extension'
+            ).then(selection => {
+                if (selection === 'Install Extension') {
+                    vscode.env.openExternal(vscode.Uri.parse(
+                        'https://marketplace.visualstudio.com/items?itemName=RichardJanisch.winccoa-project-admin'
+                    ));
+                }
+            });
+            return;
+        }
+
+        // Activate and get API
+        const api = await projectAdminExt.activate();
+        if (!api.getCurrentProject) {
+            throw new Error('Project Admin Extension API not compatible');
+        }
+
+        const project = await api.getCurrentProject();
+        if (!project) {
+            vscode.window.showWarningMessage('No WinCC OA project selected. Please select a project first.');
+            return;
+        }
+
+        const projectPath = project.projectDir;
+        if (!projectPath) {
+            throw new Error('Could not determine project path from Project Admin API (projectDir missing)');
+        }
+
+        ExtensionOutputChannel.info(`Resetting MCP Server for project: ${project.name || project.id}`);
+        ExtensionOutputChannel.info(`Project path: ${projectPath}`);
+
+        // Confirm with user
+        const answer = await vscode.window.showWarningMessage(
+            `This will delete the MCP Server directory and reinstall from scratch.\n\nProject: ${project.name}\n\nManager entries will NOT be deleted.\n\nContinue?`,
+            { modal: true },
+            'Yes, Reset',
+            'Cancel'
+        );
+
+        if (answer !== 'Yes, Reset') {
+            ExtensionOutputChannel.info('Reset cancelled by user');
+            return;
+        }
+
+        // Call SetupWizard.resetAndReinstall()
+        const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id);
+
+        if (success) {
+            vscode.window.showInformationMessage('MCP Server reset and reinstalled successfully!');
+            // Invalidate cache and reconnect
+            configDetector.invalidateCache();
+            await vscode.commands.executeCommand('winccoa.mcp.reconnect');
+        }
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`Reset error: ${error.message}`);
+        vscode.window.showErrorMessage(`Reset failed: ${error.message}`);
     }
 }

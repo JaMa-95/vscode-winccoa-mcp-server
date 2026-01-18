@@ -207,7 +207,7 @@ export class SetupWizard {
         ExtensionOutputChannel.info(`Installing winccoa-manager from: ${winCCOAManagerPath}`);
         const installResult = await this.executeCommand(
             'npm',
-            ['install', `file:${winCCOAManagerPath}`],
+            ['install', `"file:${winCCOAManagerPath}"`],
             mcpServerDir
         );
 

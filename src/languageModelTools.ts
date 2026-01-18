@@ -64,12 +64,7 @@ export class LanguageModelTools {
             vscode.lm.registerTool('winccoa_get_manager_status', new GetManagerStatusTool(() => this.getClient()))
         );
 
-        // Tool 6: Execute Script (doesn't need MCP client)
-        context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_execute_script', new ExecuteScriptTool())
-        );
-
-        ExtensionOutputChannel.info('✅ All Language Model Tools registered');
+        ExtensionOutputChannel.info('✅ All Language Model Tools registered (5 MCP Server tools)');
     }
 }
 
@@ -287,46 +282,6 @@ class GetManagerStatusTool implements vscode.LanguageModelTool<{ managerName: st
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
             throw new Error(`Failed to get manager status: ${error.message}`);
-        }
-    }
-}
-
-/**
- * Tool 6: Execute WinCC OA Script
- * 
- * Calls our internal command which delegates to Script Actions extension
- * Note: This tool doesn't use MCP Server, it directly calls VS Code commands
- */
-class ExecuteScriptTool implements vscode.LanguageModelTool<{ scriptPath: string; args?: string }> {
-    async prepareInvocation(
-        options: vscode.LanguageModelToolInvocationPrepareOptions<{ scriptPath: string; args?: string }>,
-        token: vscode.CancellationToken
-    ): Promise<vscode.PreparedToolInvocation> {
-        return {
-            invocationMessage: `Executing WinCC OA script: ${options.input.scriptPath}${options.input.args ? ` with args: ${options.input.args}` : ''}`
-        };
-    }
-
-    async invoke(
-        options: vscode.LanguageModelToolInvocationOptions<{ scriptPath: string; args?: string }>,
-        token: vscode.CancellationToken
-    ): Promise<vscode.LanguageModelToolResult> {
-        try {
-            const { scriptPath, args } = options.input;
-
-            // Call our command which handles the delegation to Script Actions
-            await vscode.commands.executeCommand(
-                'winccoa.mcp.executeScript',
-                scriptPath,
-                args || ''
-            );
-
-            return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(`Script execution started: ${scriptPath}${args ? ` with args: ${args}` : ''}. Check WinCC OA output for results.`)
-            ]);
-        } catch (error: any) {
-            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
-            throw new Error(`Failed to execute script: ${error.message}`);
         }
     }
 }

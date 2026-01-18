@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -196,31 +196,6 @@
           },
           "required": [
             "managerName"
-          ]
-        }
-      },
-      {
-        "name": "winccoa_execute_script",
-        "displayName": "Execute WinCC OA Script",
-        "modelDescription": "Executes a WinCC OA CTL script file via the Script Actions extension. Use this when the user wants to run a script, execute a test, or trigger a script with arguments. The script must exist in the workspace.",
-        "canBeReferencedInPrompt": true,
-        "toolReferenceName": "winccoa_script",
-        "icon": "$(run)",
-        "userDescription": "Execute a CTL script with optional arguments",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "scriptPath": {
-              "type": "string",
-              "description": "Path to the script file (e.g., 'scripts/test.ctl')"
-            },
-            "args": {
-              "type": "string",
-              "description": "Optional arguments to pass to the script"
-            }
-          },
-          "required": [
-            "scriptPath"
           ]
         }
       }

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-18
+
+### 🎯 Changed
+- **Clear Responsibilities**: Removed Execute Script Tool from MCP Extension
+  - Script execution now exclusively handled by Script Actions Extension
+  - MCP Extension focuses on MCP Server lifecycle management only
+  - Tools: 5 MCP Server tools (managers, datapoints, values, types, status)
+
+### 🛠️ Architecture
+- **Extension Separation**: Each extension owns its specific Language Model Tools
+  - MCP Server Extension: Server management + MCP tools
+  - Script Actions Extension: Script execution (`scriptactions_execute_script`)
+  - CTL Language Extension: Language features (`ctl_*` tools)
+  - LogViewer Extension: Log analysis (`logviewer_*` tools)
+
 ## [1.1.1] - 2026-01-18
 
 ### Added

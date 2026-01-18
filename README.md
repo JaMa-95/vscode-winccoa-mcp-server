@@ -37,6 +37,12 @@ The goal is to enable developers to use natural language commands to:
 
 ---
 
+## 🎬 See It In Action
+
+![WinCC OA MCP Server Demo](https://github.com/winccoa-tools-pack/vscode-winccoa-mcp-server/blob/develop/resources/Animation.gif?raw=true)
+
+---
+
 ## ✨ Features
 
 ### 🧙 Auto-Setup Wizard

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-01-18
+
+### 🎯 Changed
+- **Removed Chat Participant (@winccoa)**: Simplified to Language Model Tools only
+  - GitHub Copilot now uses tools directly without chat participant interface
+  - Cleaner integration, better performance
+  - Focus on tool-based AI assistance
+
+### 🐛 Fixed
+- **Path Quoting for WinCC OA 3.21**: Fixed npm install failure for paths with spaces
+  - Properly quotes `file:C:\Program Files\Siemens\WinCC_OA\3.21\...` paths
+  - Prevents "ENOENT: no such file or directory, open 'C:\Program\package.json'" error
+- **Manager Entry Simplified**: Now uses relative path only
+  - Changed from absolute path to `mcpServer\index_http.js`
+  - Removed automatic `-num X` flag assignment
+  - Manager entry: `node | always | ... | mcpServer\index_http.js`
+
 ## [1.2.0] - 2026-01-18
 
 ### 🎯 Changed

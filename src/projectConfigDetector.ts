@@ -128,7 +128,7 @@ export class ProjectConfigDetector {
         port: string;
         authType: string;
     } | null> {
-        const envPath = path.join(projectPath, 'javascript', 'mcpServer', 'mcpWinCCOA', 'build', '.env');
+        const envPath = path.join(projectPath, 'javascript', 'mcpServer', '.env');
 
         if (!fs.existsSync(envPath)) {
             ExtensionOutputChannel.warn(`MCP .env file not found: ${envPath}`);

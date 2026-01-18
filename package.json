@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -68,6 +68,10 @@
       {
         "command": "winccoa.mcp.runSetup",
         "title": "WinCC OA: Run MCP Server Setup Wizard"
+      },
+      {
+        "command": "winccoa.mcp.resetAndReinstall",
+        "title": "WinCC OA: Reset & Reinstall MCP Server"
       }
     ],
     "chatParticipants": [

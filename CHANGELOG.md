@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-01-18
+
+### Added
+- **Reset & Reinstall Command**: Quick reset for debugging MCP Server setup issues
+  - Deletes `javascript/mcpServer` folder and reinstalls from scratch
+  - Manager entries in `config/progs` are preserved
+  - Accessible via "Run Setup Wizard" button when already installed
+- **Version Check**: Blocks installation for WinCC OA versions < 3.20
+  - Shows clear error message with version requirement
+  - Prevents installation attempts on unsupported versions
+
+### Changed
+- **🔧 BREAKING: NPM Package Installation**: Migrated from Git Clone to NPM package
+  - Now installs `@etm-professional-control/winccoa-mcp-server` package
+  - Pre-built JavaScript files, no TypeScript compilation needed
+  - No bash build script required (Windows compatible)
+  - Faster and more reliable installation
+- **Windows Path Support**: Uses Project Admin Extension for WinCC OA paths
+  - Automatically detects Windows registry paths (C:\Siemens\Automation\WinCC_OA\)
+  - No more hardcoded `/opt/WinCC_OA/` Linux paths
+  - Cross-platform compatibility (Windows + Linux)
+
+### Fixed
+- **Manager Script Path**: Corrected to `javascript/mcpServer/index_http.js`
+  - Was: `javascript/mcpServer/mcpWinCCOA/build/index_http.js`
+  - Matches NPM package structure
+- **.env Detection Path**: Fixed to `javascript/mcpServer/.env`
+  - Was: `javascript/mcpServer/mcpWinCCOA/build/.env`
+  - Connection checks now find configuration correctly
+- **npm install Error**: Resolved "Cannot read properties of undefined (reading 'extraneous')"
+  - Root cause: Incompatible package-lock.json from Git Clone
+  - Solution: NPM package has compatible dependencies
+
+### Technical Notes
+- **Architecture Change**: WinCC OA installation path now provided by Project Admin Extension
+  - Single source of truth for project metadata
+  - No duplicate path detection logic
+- **Simplified Installation**: Reduced from 5 steps to 4 steps
+  - ~~Step 1: Clone Repository~~ → Install NPM Package
+  - ~~Step 2: Install Dependencies~~ → (included in NPM package)
+  - Step 2: Install WinCC OA Manager (peer dependency)
+  - Step 3: Generate Token
+  - Step 4: Create .env
+  - ~~Step 5: Build TypeScript~~ → (pre-built in NPM package)
+
 ## [1.1.0] - 2026-01-15
 
 ### Added

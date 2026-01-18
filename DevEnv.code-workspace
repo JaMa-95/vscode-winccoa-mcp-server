@@ -1,5 +1,10 @@
 {
-	"folders": [],
+	"folders": [
+		{
+			"name": "MCPTest",
+			"path": "../../WinCCOA_Proj/MCPTest"
+		}
+	],
 	"settings": {
 		"workbench.colorCustomizations": {
 			"activityBar.background": "#3D1F66",

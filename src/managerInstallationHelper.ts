@@ -53,7 +53,8 @@ export class ManagerInstallationHelper {
         mcpServerPath: string
     ): Promise<boolean> {
         try {
-            const scriptPath = path.join(mcpServerPath, 'index_http.js');
+            // Use relative path from project root
+            const scriptPath = 'mcpServer\\index_http.js';
             
             // Check if manager already exists
             const exists = await ManagerConfigWriter.managerExists(

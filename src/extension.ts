@@ -786,6 +786,17 @@ async function runSetup(): Promise<void> {
         ExtensionOutputChannel.info(`WinCC OA version: ${project.version}`);
         ExtensionOutputChannel.info(`WinCC OA install path: ${project.oaInstallPath}`);
 
+        // Version check: MCP Server requires WinCC OA 3.20 or higher
+        const minVersion = 3.20;
+        const projectVersion = parseFloat(project.version);
+        
+        if (isNaN(projectVersion) || projectVersion < minVersion) {
+            const errorMsg = `MCP Server requires WinCC OA 3.20 or higher.\n\nYour project uses version: ${project.version}\n\nPlease upgrade to WinCC OA 3.20+ to use the MCP Server.`;
+            ExtensionOutputChannel.error(errorMsg);
+            vscode.window.showErrorMessage(errorMsg, { modal: true });
+            return;
+        }
+
         // Check if already installed
         const isInstalled = await SetupWizard.isMcpServerInstalled(projectPath);
         if (isInstalled) {
@@ -868,6 +879,17 @@ async function resetAndReinstall(): Promise<void> {
         ExtensionOutputChannel.info(`Resetting MCP Server for project: ${project.name || project.id}`);
         ExtensionOutputChannel.info(`Project path: ${projectPath}`);
         ExtensionOutputChannel.info(`WinCC OA install path: ${project.oaInstallPath}`);
+
+        // Version check: MCP Server requires WinCC OA 3.20 or higher
+        const minVersion = 3.20;
+        const projectVersion = parseFloat(project.version);
+        
+        if (isNaN(projectVersion) || projectVersion < minVersion) {
+            const errorMsg = `MCP Server requires WinCC OA 3.20 or higher.\n\nYour project uses version: ${project.version}\n\nPlease upgrade to WinCC OA 3.20+ to use the MCP Server.`;
+            ExtensionOutputChannel.error(errorMsg);
+            vscode.window.showErrorMessage(errorMsg, { modal: true });
+            return;
+        }
 
         // Confirm with user
         const answer = await vscode.window.showWarningMessage(

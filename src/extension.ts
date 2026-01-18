@@ -123,7 +123,6 @@ async function createClient(config: McpConfig): Promise<McpClient> {
     
     // Update all components
     languageModelTools.updateClient(client);
-    updateChatParticipant(client);
     
     // Start connection monitoring
     startConnectionMonitor();

@@ -94,10 +94,10 @@ export class ManagerConfigWriter {
             
             // Auto-assign manager number if not provided
             let finalOptions = manager.options;
-            if (!manager.options.includes('-num')) {
-                const managerNum = manager.managerNumber || await this.getNextFreeManagerNumber(projectPath);
-                finalOptions = `-num ${managerNum} ${manager.options}`;
-                ExtensionOutputChannel.info(`ManagerConfigWriter: Auto-assigned manager number: ${managerNum}`);
+            if (manager.managerNumber && !manager.options.includes('-num')) {
+                // Only add -num if explicitly requested via managerNumber property
+                finalOptions = `-num ${manager.managerNumber} ${manager.options}`;
+                ExtensionOutputChannel.info(`ManagerConfigWriter: Using manager number: ${manager.managerNumber}`);
             }
             
             // Format manager entry

@@ -783,6 +783,8 @@ async function runSetup(): Promise<void> {
         }
 
         ExtensionOutputChannel.info(`Project path: ${projectPath}`);
+        ExtensionOutputChannel.info(`WinCC OA version: ${project.version}`);
+        ExtensionOutputChannel.info(`WinCC OA install path: ${project.oaInstallPath}`);
 
         // Check if already installed
         const isInstalled = await SetupWizard.isMcpServerInstalled(projectPath);
@@ -800,7 +802,7 @@ async function runSetup(): Promise<void> {
             }
             
             // User wants to reinstall - call resetAndReinstall
-            const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id);
+            const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id, project.oaInstallPath);
             
             if (success) {
                 configDetector.invalidateCache();
@@ -810,7 +812,7 @@ async function runSetup(): Promise<void> {
         }
 
         // Run setup wizard (fresh install)
-        const success = await SetupWizard.runSetup(projectPath, project.name || project.id);
+        const success = await SetupWizard.runSetup(projectPath, project.name || project.id, project.oaInstallPath);
         
         if (success) {
             // Invalidate cache and reconnect
@@ -865,6 +867,7 @@ async function resetAndReinstall(): Promise<void> {
 
         ExtensionOutputChannel.info(`Resetting MCP Server for project: ${project.name || project.id}`);
         ExtensionOutputChannel.info(`Project path: ${projectPath}`);
+        ExtensionOutputChannel.info(`WinCC OA install path: ${project.oaInstallPath}`);
 
         // Confirm with user
         const answer = await vscode.window.showWarningMessage(
@@ -880,7 +883,7 @@ async function resetAndReinstall(): Promise<void> {
         }
 
         // Call SetupWizard.resetAndReinstall()
-        const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id);
+        const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id, project.oaInstallPath);
 
         if (success) {
             vscode.window.showInformationMessage('MCP Server reset and reinstalled successfully!');

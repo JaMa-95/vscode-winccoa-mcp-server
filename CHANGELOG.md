@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-01-23
+
+### ✨ Added
+- **Write Operations Support**: 8 new Language Model Tools for data manipulation
+  - **Datapoint Creation**: `winccoa_create_datapoint` - Create datapoints
+  - **Value Writing**: `winccoa_dp_set` - Write values (with user confirmation for safety!)
+  - **Datapoint Type Creation**: `winccoa_create_dp_type` - Define DPT structures
+  - **Alarm Configuration**: `winccoa_alarm_set` / `winccoa_alarm_delete` - Manage alarm configuration
+  - **Archive Configuration**: `winccoa_archive_set` - Enable archiving
+  - **Common Config**: `winccoa_common_set` - Set description, alias, unit, format
+  - **PV Range**: `winccoa_pv_range_set` - Configure min/max values
+- **Safety Features**: All write operations require user confirmation
+  - Confirmation dialog with operation details
+  - Warning messages for critical operations (e.g., equipment control)
+  - Clear indicators for irreversible changes
+
+### 📊 Enhanced
+- **Tool Count**: Expanded from 5 to 13 Language Model Tools
+  - 5 Read-Only Tools (Manager, Datapoints, Values, Types, Status)
+  - 8 Write Tools (Create, Set, Configure, Delete)
+- **MCP Server Integration**: Full integration of all available write tools
+  - Compatible with winccoa-ae-js-mcpserver tools
+  - Supports all configuration options (force, thresholds, classes, etc.)
+
+### 🛡️ Security
+- **User Confirmation**: All write operations require explicit confirmation
+- **Warning Messages**: Clear warnings for critical operations
+- **Safety-First Design**: Copilot cannot make changes without user approval
+
 ## [1.3.0] - 2026-01-18
 
 ### 🎯 Changed

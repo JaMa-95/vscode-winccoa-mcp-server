@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -162,6 +162,265 @@
           },
           "required": [
             "managerName"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_create_datapoint",
+        "displayName": "Create Datapoint",
+        "modelDescription": "Creates a new datapoint in the WinCC OA system. Use this when the user wants to add new datapoints to the system. Requires datapoint name and type.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_create_dp",
+        "icon": "$(add)",
+        "userDescription": "Create a new datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpeName": {
+              "type": "string",
+              "description": "Name of the datapoint to create"
+            },
+            "dpType": {
+              "type": "string",
+              "description": "Type of the datapoint (e.g., 'ExampleDP_Float', '_FwNode')"
+            },
+            "systemId": {
+              "type": "number",
+              "description": "System ID for distributed systems (optional)"
+            },
+            "dpId": {
+              "type": "number",
+              "description": "Specific datapoint ID (optional, random if not provided)"
+            }
+          },
+          "required": [
+            "dpeName",
+            "dpType"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_dp_set",
+        "displayName": "Set Datapoint Value",
+        "modelDescription": "Sets the value of a datapoint element in WinCC OA. **WARNING:** This directly controls industrial equipment. Use with extreme caution! Requires user confirmation before execution.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_write",
+        "icon": "$(edit)",
+        "userDescription": "Write value to a datapoint (CAUTION: controls real equipment!)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpeName": {
+              "type": "string",
+              "description": "Datapoint element name (e.g., 'System1:Pump.cmd.start')"
+            },
+            "value": {
+              "description": "Value to write (type depends on datapoint type)"
+            }
+          },
+          "required": [
+            "dpeName",
+            "value"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_create_dp_type",
+        "displayName": "Create Datapoint Type",
+        "modelDescription": "Creates a new datapoint type (DPT) with structure definition in WinCC OA. Use this when the user wants to define new data structures/templates for datapoints.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_create_dpt",
+        "icon": "$(symbol-structure)",
+        "userDescription": "Create a new datapoint type structure",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the datapoint type"
+            },
+            "structure": {
+              "description": "Structure definition (JSON tree with name, type, children)"
+            }
+          },
+          "required": [
+            "name",
+            "structure"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_alarm_set",
+        "displayName": "Set Alarm Configuration",
+        "modelDescription": "Configures alarm thresholds and settings for a datapoint element. Supports binary alarms (BOOL) and analog alarms (numeric types with 1-3 thresholds). Use when the user wants to set up alarm monitoring.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_alarm",
+        "icon": "$(bell)",
+        "userDescription": "Configure alarm thresholds for a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpe": {
+              "type": "string",
+              "description": "Datapoint element name"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "ASC",
+                "DESC"
+              ],
+              "description": "ASC (ascending) or DESC (descending)"
+            },
+            "thresholds": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Threshold values (1-3 values for analog alarms)"
+            },
+            "alarmClasses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Custom alarm class names (optional)"
+            },
+            "force": {
+              "type": "boolean",
+              "description": "Force update if configuration exists"
+            }
+          },
+          "required": [
+            "dpe",
+            "direction"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_alarm_delete",
+        "displayName": "Delete Alarm Configuration",
+        "modelDescription": "Deletes alarm configuration from a datapoint element. Use when the user wants to remove alarm monitoring. This action cannot be undone!",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_alarm_del",
+        "icon": "$(bell-slash)",
+        "userDescription": "Delete alarm configuration from a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpe": {
+              "type": "string",
+              "description": "Datapoint element name"
+            }
+          },
+          "required": [
+            "dpe"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_archive_set",
+        "displayName": "Set Archive Configuration",
+        "modelDescription": "Configures archiving (historical data collection) for a datapoint element. Use when the user wants to enable historical data logging for trend analysis.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_archive",
+        "icon": "$(archive)",
+        "userDescription": "Enable archiving for a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpe": {
+              "type": "string",
+              "description": "Datapoint element name"
+            },
+            "archiveClass": {
+              "type": "string",
+              "description": "Archive class name (default: '_NGA_G_EVENT')"
+            },
+            "force": {
+              "type": "boolean",
+              "description": "Force update if configuration exists"
+            }
+          },
+          "required": [
+            "dpe"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_common_set",
+        "displayName": "Set Common Configuration",
+        "modelDescription": "Sets common configuration attributes for a datapoint element (description, alias, format, unit). Use when the user wants to add metadata or display properties to datapoints.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_common",
+        "icon": "$(tag)",
+        "userDescription": "Configure common attributes (description, unit, etc.)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpe": {
+              "type": "string",
+              "description": "Datapoint element name"
+            },
+            "description": {
+              "description": "Multi-language description (UTF-8) or string"
+            },
+            "alias": {
+              "type": "string",
+              "description": "Alias name"
+            },
+            "format": {
+              "description": "Multi-language format (UTF-8) or string"
+            },
+            "unit": {
+              "description": "Multi-language unit (UTF-8) or string"
+            }
+          },
+          "required": [
+            "dpe"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_pv_range_set",
+        "displayName": "Set PV Range",
+        "modelDescription": "Sets min/max value range validation for a datapoint element. Use when the user wants to define valid value boundaries for inputs/outputs.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_range",
+        "icon": "$(range)",
+        "userDescription": "Set min/max value range for a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpe": {
+              "type": "string",
+              "description": "Datapoint element name"
+            },
+            "min": {
+              "type": "number",
+              "description": "Minimum value"
+            },
+            "max": {
+              "type": "number",
+              "description": "Maximum value"
+            },
+            "includeMin": {
+              "type": "boolean",
+              "description": "Include min in valid range (default: true)"
+            },
+            "includeMax": {
+              "type": "boolean",
+              "description": "Include max in valid range (default: true)"
+            },
+            "force": {
+              "type": "boolean",
+              "description": "Force update if configuration exists"
+            }
+          },
+          "required": [
+            "dpe",
+            "min",
+            "max"
           ]
         }
       }

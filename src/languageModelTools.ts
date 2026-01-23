@@ -39,6 +39,8 @@ export class LanguageModelTools {
     register(context: vscode.ExtensionContext): void {
         ExtensionOutputChannel.info('Registering Language Model Tools...');
         
+        // === READ-ONLY TOOLS ===
+        
         // Tool 1: List Managers
         context.subscriptions.push(
             vscode.lm.registerTool('winccoa_list_managers', new ListManagersTool(() => this.getClient()))
@@ -64,7 +66,49 @@ export class LanguageModelTools {
             vscode.lm.registerTool('winccoa_get_manager_status', new GetManagerStatusTool(() => this.getClient()))
         );
 
-        ExtensionOutputChannel.info('✅ All Language Model Tools registered (5 MCP Server tools)');
+        // === WRITE TOOLS ===
+
+        // Tool 6: Create Datapoint
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_create_datapoint', new CreateDatapointTool(() => this.getClient()))
+        );
+
+        // Tool 7: Set Datapoint Value
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_dp_set', new DpSetTool(() => this.getClient()))
+        );
+
+        // Tool 8: Create Datapoint Type
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_create_dp_type', new CreateDpTypeTool(() => this.getClient()))
+        );
+
+        // Tool 9: Set Alarm Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_alarm_set', new AlarmSetTool(() => this.getClient()))
+        );
+
+        // Tool 10: Delete Alarm Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_alarm_delete', new AlarmDeleteTool(() => this.getClient()))
+        );
+
+        // Tool 11: Set Archive Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_archive_set', new ArchiveSetTool(() => this.getClient()))
+        );
+
+        // Tool 12: Set Common Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_common_set', new CommonSetTool(() => this.getClient()))
+        );
+
+        // Tool 13: Set PV Range
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_pv_range_set', new PvRangeSetTool(() => this.getClient()))
+        );
+
+        ExtensionOutputChannel.info('✅ All Language Model Tools registered (13 tools: 5 read-only + 8 write)');
     }
 }
 
@@ -282,6 +326,536 @@ class GetManagerStatusTool implements vscode.LanguageModelTool<{ managerName: st
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
             throw new Error(`Failed to get manager status: ${error.message}`);
+        }
+    }
+}
+
+// ============================================================================
+// WRITE TOOLS
+// ============================================================================
+
+/**
+ * Tool 6: Create Datapoint
+ */
+class CreateDatapointTool implements vscode.LanguageModelTool<{
+    dpeName: string;
+    dpType: string;
+    systemId?: number;
+    dpId?: number;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpeName: string;
+            dpType: string;
+            systemId?: number;
+            dpId?: number;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Creating datapoint '${options.input.dpeName}' of type '${options.input.dpType}'...`,
+            confirmationMessages: {
+                title: 'Create Datapoint',
+                message: new vscode.MarkdownString(
+                    `Do you want to create datapoint **${options.input.dpeName}** of type **${options.input.dpType}**?\n\n` +
+                    `⚠️ This will modify your WinCC OA system configuration.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpeName: string;
+            dpType: string;
+            systemId?: number;
+            dpId?: number;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('create-datapoint', {
+                dpeName: options.input.dpeName,
+                dpType: options.input.dpType,
+                systemId: options.input.systemId,
+                dpId: options.input.dpId
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to create datapoint: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 7: Set Datapoint Value
+ */
+class DpSetTool implements vscode.LanguageModelTool<{
+    dpeName: string;
+    value: any;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpeName: string;
+            value: any;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Setting ${options.input.dpeName} = ${options.input.value}...`,
+            confirmationMessages: {
+                title: 'Set Datapoint Value',
+                message: new vscode.MarkdownString(
+                    `Do you want to set **${options.input.dpeName}** to **${options.input.value}**?\n\n` +
+                    `⚠️ **WARNING:** This directly controls industrial equipment. Use with caution!`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpeName: string;
+            value: any;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('dp-set', {
+                datapoints: {
+                    dpeName: options.input.dpeName,
+                    value: options.input.value
+                }
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to set datapoint value: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 8: Create Datapoint Type
+ */
+class CreateDpTypeTool implements vscode.LanguageModelTool<{
+    name: string;
+    structure: any;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            name: string;
+            structure: any;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Creating datapoint type '${options.input.name}'...`,
+            confirmationMessages: {
+                title: 'Create Datapoint Type',
+                message: new vscode.MarkdownString(
+                    `Do you want to create datapoint type **${options.input.name}**?\n\n` +
+                    `⚠️ This will modify your WinCC OA system configuration.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            name: string;
+            structure: any;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('dp-type-create', {
+                name: options.input.name,
+                structure: options.input.structure
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to create datapoint type: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 9: Set Alarm Configuration
+ */
+class AlarmSetTool implements vscode.LanguageModelTool<{
+    dpe: string;
+    direction: 'ASC' | 'DESC';
+    thresholds?: number[];
+    alarmClasses?: string[];
+    force?: boolean;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpe: string;
+            direction: 'ASC' | 'DESC';
+            thresholds?: number[];
+            alarmClasses?: string[];
+            force?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Configuring alarm for ${options.input.dpe}...`,
+            confirmationMessages: {
+                title: 'Set Alarm Configuration',
+                message: new vscode.MarkdownString(
+                    `Do you want to configure alarm for **${options.input.dpe}**?\n\n` +
+                    `Direction: **${options.input.direction}**\n` +
+                    (options.input.thresholds ? `Thresholds: **${options.input.thresholds.join(', ')}**\n` : '') +
+                    `\n⚠️ This will modify alarm configuration in your WinCC OA system.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpe: string;
+            direction: 'ASC' | 'DESC';
+            thresholds?: number[];
+            alarmClasses?: string[];
+            force?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('alarm-set', {
+                config: {
+                    dpe: options.input.dpe,
+                    direction: options.input.direction,
+                    thresholds: options.input.thresholds,
+                    alarmClasses: options.input.alarmClasses,
+                    force: options.input.force
+                }
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to set alarm configuration: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 10: Delete Alarm Configuration
+ */
+class AlarmDeleteTool implements vscode.LanguageModelTool<{
+    dpe: string;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpe: string;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Deleting alarm configuration for ${options.input.dpe}...`,
+            confirmationMessages: {
+                title: 'Delete Alarm Configuration',
+                message: new vscode.MarkdownString(
+                    `Do you want to **delete** alarm configuration for **${options.input.dpe}**?\n\n` +
+                    `⚠️ This action cannot be undone!`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpe: string;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('alarm-delete', {
+                dpe: options.input.dpe
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to delete alarm configuration: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 11: Set Archive Configuration
+ */
+class ArchiveSetTool implements vscode.LanguageModelTool<{
+    dpe: string;
+    archiveClass?: string;
+    force?: boolean;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpe: string;
+            archiveClass?: string;
+            force?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Configuring archive for ${options.input.dpe}...`,
+            confirmationMessages: {
+                title: 'Set Archive Configuration',
+                message: new vscode.MarkdownString(
+                    `Do you want to configure archiving for **${options.input.dpe}**?\n\n` +
+                    `Archive Class: **${options.input.archiveClass || '_NGA_G_EVENT'}**\n\n` +
+                    `⚠️ This will enable historical data collection.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpe: string;
+            archiveClass?: string;
+            force?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('archive-set', {
+                config: {
+                    dpe: options.input.dpe,
+                    archiveClass: options.input.archiveClass,
+                    force: options.input.force
+                }
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to set archive configuration: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 12: Set Common Configuration
+ */
+class CommonSetTool implements vscode.LanguageModelTool<{
+    dpe: string;
+    description?: string | { [lang: string]: string };
+    alias?: string;
+    format?: string | { [lang: string]: string };
+    unit?: string | { [lang: string]: string };
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpe: string;
+            description?: string | { [lang: string]: string };
+            alias?: string;
+            format?: string | { [lang: string]: string };
+            unit?: string | { [lang: string]: string };
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Configuring common attributes for ${options.input.dpe}...`,
+            confirmationMessages: {
+                title: 'Set Common Configuration',
+                message: new vscode.MarkdownString(
+                    `Do you want to configure common attributes for **${options.input.dpe}**?\n\n` +
+                    `⚠️ This will modify datapoint metadata.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpe: string;
+            description?: string | { [lang: string]: string };
+            alias?: string;
+            format?: string | { [lang: string]: string };
+            unit?: string | { [lang: string]: string };
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('common-set', {
+                config: {
+                    dpe: options.input.dpe,
+                    description: options.input.description,
+                    alias: options.input.alias,
+                    format: options.input.format,
+                    unit: options.input.unit
+                }
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to set common configuration: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 13: Set PV Range
+ */
+class PvRangeSetTool implements vscode.LanguageModelTool<{
+    dpe: string;
+    min: number;
+    max: number;
+    includeMin?: boolean;
+    includeMax?: boolean;
+    force?: boolean;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpe: string;
+            min: number;
+            max: number;
+            includeMin?: boolean;
+            includeMax?: boolean;
+            force?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Configuring PV range for ${options.input.dpe}...`,
+            confirmationMessages: {
+                title: 'Set PV Range',
+                message: new vscode.MarkdownString(
+                    `Do you want to configure PV range for **${options.input.dpe}**?\n\n` +
+                    `Range: **${options.input.min}** to **${options.input.max}**\n\n` +
+                    `⚠️ This will set min/max validation for the datapoint.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpe: string;
+            min: number;
+            max: number;
+            includeMin?: boolean;
+            includeMax?: boolean;
+            force?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('pv-range-set', {
+                config: {
+                    dpe: options.input.dpe,
+                    min: options.input.min,
+                    max: options.input.max,
+                    includeMin: options.input.includeMin,
+                    includeMax: options.input.includeMax,
+                    force: options.input.force
+                }
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to set PV range: ${error.message}`);
         }
     }
 }

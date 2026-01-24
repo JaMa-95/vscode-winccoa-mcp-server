@@ -108,7 +108,24 @@ export class LanguageModelTools {
             vscode.lm.registerTool('winccoa_pv_range_set', new PvRangeSetTool(() => this.getClient()))
         );
 
-        ExtensionOutputChannel.info('✅ All Language Model Tools registered (13 tools: 5 read-only + 8 write)');
+        // === MODBUS TOOLS ===
+
+        // Tool 14: Get Modbus Address Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_modbus_address_get', new ModbusAddressGetTool(() => this.getClient()))
+        );
+
+        // Tool 15: Set Modbus Address Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_modbus_address_set', new ModbusAddressSetTool(() => this.getClient()))
+        );
+
+        // Tool 16: Remove Modbus Address Configuration
+        context.subscriptions.push(
+            vscode.lm.registerTool('winccoa_modbus_address_remove', new ModbusAddressRemoveTool(() => this.getClient()))
+        );
+
+        ExtensionOutputChannel.info('✅ All Language Model Tools registered (16 tools: 6 read-only + 10 write)');
     }
 }
 
@@ -188,7 +205,7 @@ class GetDatapointsTool implements vscode.LanguageModelTool<{ pattern: string }>
             }
 
             // MCP Server returns multiple datapoints as separate content items
-            const datapoints = result.content.map(item => JSON.parse(item.text!));
+            const  datapoints = result.content.map(item => JSON.parse(item.text!));
 
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(JSON.stringify(datapoints, null, 2))
@@ -264,16 +281,29 @@ class GetDpTypesTool implements vscode.LanguageModelTool<{ pattern?: string }> {
         try {
             const client = this.getClient();
             const result = await client.callTool('get-dpTypes', {
-                pattern: options.input.pattern || '*',
-                includeDetails: false
+                pattern: options.input.pattern || '*'
             });
 
             if (!result.content || result.content.length === 0) {
                 throw new Error('No response from MCP server');
             }
 
-            const response = JSON.parse(result.content[0].text!);
-            const types = response.data?.dpTypes || response.dpTypes || [];
+            // MCP Server returns type names as plain text strings, one per content item
+            // Check if it's an error response (JSON with error field)
+            const firstItem = result.content[0].text!;
+            if (firstItem.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(firstItem);
+                    if (parsed.error) {
+                        throw new Error(parsed.message || 'Unknown error');
+                    }
+                } catch (e) {
+                    // Not JSON, treat as type name
+                }
+            }
+
+            // Collect all type names from content items
+            const types = result.content.map(item => item.text!).filter(t => t && !t.startsWith('{'));
 
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(JSON.stringify(types, null, 2))
@@ -497,16 +527,53 @@ class CreateDpTypeTool implements vscode.LanguageModelTool<{
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
+            
+            // MCP Server expects 'typeName' parameter, not 'name'
+            // Parse structure if it's a string (from LLM)
+            let structure = options.input.structure;
+            if (typeof structure === 'string') {
+                try {
+                    structure = JSON.parse(structure);
+                } catch (e) {
+                    throw new Error(`Invalid structure JSON: ${e}`);
+                }
+            }
+            
+            // Ensure structure.name matches typeName
+            structure = { ...structure };
+            if (structure.name !== options.input.name) {
+                structure.name = options.input.name;
+            }
+            
+            ExtensionOutputChannel.debug(`Creating DP type: ${options.input.name}`);
+            ExtensionOutputChannel.debug(`Structure: ${JSON.stringify(structure)}`);
+            
             const result = await client.callTool('dp-type-create', {
-                name: options.input.name,
-                structure: options.input.structure
+                typeName: options.input.name,
+                structure: structure
             });
 
             if (!result.content || result.content.length === 0) {
                 throw new Error('No response from MCP server');
             }
 
-            const response = JSON.parse(result.content[0].text!);
+            // Handle both JSON and plain text responses
+            const responseText = result.content[0].text!;
+            let response: any;
+            try {
+                response = JSON.parse(responseText);
+            } catch (e) {
+                // Response is not JSON - could be error message or success text
+                if (responseText.toLowerCase().includes('error')) {
+                    throw new Error(responseText);
+                }
+                response = { message: responseText };
+            }
+            
+            // Check if response indicates error
+            if (response.error) {
+                throw new Error(response.message || 'Unknown error from MCP server');
+            }
             
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
@@ -856,6 +923,183 @@ class PvRangeSetTool implements vscode.LanguageModelTool<{
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
             throw new Error(`Failed to set PV range: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 14: Get Modbus Address Configuration
+ */
+class ModbusAddressGetTool implements vscode.LanguageModelTool<{
+    dpName: string;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpName: string;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('modbus-get-address-config', {
+                dpName: options.input.dpName
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to get Modbus address: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 15: Set Modbus Address Configuration
+ */
+class ModbusAddressSetTool implements vscode.LanguageModelTool<{
+    dpName: string;
+    connectionId: number;
+    deviceId: number;
+    registerAddress: number;
+    datatype?: number;
+    direction?: number;
+    active?: boolean;
+    lowlevel?: boolean;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpName: string;
+            connectionId: number;
+            deviceId: number;
+            registerAddress: number;
+            datatype?: number;
+            direction?: number;
+            active?: boolean;
+            lowlevel?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        const reference = `M.${options.input.connectionId}.${options.input.deviceId}.${options.input.registerAddress}`;
+        return {
+            invocationMessage: `Configuring Modbus address for ${options.input.dpName}...`,
+            confirmationMessages: {
+                title: 'Set Modbus Address Configuration',
+                message: new vscode.MarkdownString(
+                    `Do you want to configure Modbus address for **${options.input.dpName}**?\n\n` +
+                    `Reference: **${reference}**\n` +
+                    `Connection ID: **${options.input.connectionId}**\n` +
+                    `Device ID: **${options.input.deviceId}**\n` +
+                    `Register: **${options.input.registerAddress}**\n\n` +
+                    `⚠️ This will configure peripheral address in your WinCC OA system.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpName: string;
+            connectionId: number;
+            deviceId: number;
+            registerAddress: number;
+            datatype?: number;
+            direction?: number;
+            active?: boolean;
+            lowlevel?: boolean;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('modbus-add-address-config', {
+                dpName: options.input.dpName,
+                connectionId: options.input.connectionId,
+                deviceId: options.input.deviceId,
+                registerAddress: options.input.registerAddress,
+                datatype: options.input.datatype,
+                direction: options.input.direction,
+                active: options.input.active,
+                lowlevel: options.input.lowlevel
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to set Modbus address: ${error.message}`);
+        }
+    }
+}
+
+/**
+ * Tool 16: Remove Modbus Address Configuration
+ */
+class ModbusAddressRemoveTool implements vscode.LanguageModelTool<{
+    dpName: string;
+}> {
+    constructor(private getClient: () => McpClient) {}
+
+    async prepareInvocation(
+        options: vscode.LanguageModelToolInvocationPrepareOptions<{
+            dpName: string;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.PreparedToolInvocation> {
+        return {
+            invocationMessage: `Removing Modbus address from ${options.input.dpName}...`,
+            confirmationMessages: {
+                title: 'Remove Modbus Address Configuration',
+                message: new vscode.MarkdownString(
+                    `Do you want to **remove** Modbus address configuration from **${options.input.dpName}**?\n\n` +
+                    `⚠️ This will deactivate the address and clear distribution config.`
+                )
+            }
+        };
+    }
+
+    async invoke(
+        options: vscode.LanguageModelToolInvocationOptions<{
+            dpName: string;
+        }>,
+        token: vscode.CancellationToken
+    ): Promise<vscode.LanguageModelToolResult> {
+        try {
+            const client = this.getClient();
+            const result = await client.callTool('modbus-remove-address-config', {
+                dpName: options.input.dpName
+            });
+
+            if (!result.content || result.content.length === 0) {
+                throw new Error('No response from MCP server');
+            }
+
+            const response = JSON.parse(result.content[0].text!);
+            
+            return new vscode.LanguageModelToolResult([
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+            ]);
+        } catch (error: any) {
+            ExtensionOutputChannel.error(`Tool error: ${error.message}`);
+            throw new Error(`Failed to remove Modbus address: ${error.message}`);
         }
     }
 }

@@ -5,6 +5,8 @@
  * Based on working test scripts (test-connection.mjs, test-tool.mjs).
  */
 
+import { ExtensionOutputChannel } from './extensionOutput';
+
 export interface McpClientConfig {
     /** MCP Server URL (e.g., 'http://localhost:3001/mcp') */
     url: string;
@@ -148,6 +150,9 @@ export class McpClient {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
+        ExtensionOutputChannel.debug(`[MCP] >>> Request: ${request.method}`);
+        ExtensionOutputChannel.debug(`[MCP] >>> Params: ${JSON.stringify(request.params, null, 2)}`);
+
         try {
             const response = await fetch(this.config.url, {
                 method: 'POST',
@@ -162,15 +167,23 @@ export class McpClient {
 
             clearTimeout(timeoutId);
 
+            ExtensionOutputChannel.debug(`[MCP] <<< HTTP Status: ${response.status} ${response.statusText}`);
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             // Parse SSE response
             const text = await response.text();
-            return this.parseSSEResponse(text);
+            ExtensionOutputChannel.debug(`[MCP] <<< Raw SSE Response:\n${text}`);
+            
+            const result = this.parseSSEResponse(text);
+            ExtensionOutputChannel.debug(`[MCP] <<< Parsed Result: ${JSON.stringify(result, null, 2).substring(0, 500)}...`);
+            
+            return result;
 
         } catch (error: any) {
+            ExtensionOutputChannel.error(`[MCP] !!! Error: ${error.message}`);
             if (error.name === 'AbortError') {
                 throw new Error(`Request timeout after ${this.config.timeout}ms`);
             }
@@ -190,15 +203,18 @@ export class McpClient {
      */
     private parseSSEResponse(text: string): any {
         const lines = text.split('\n');
+        ExtensionOutputChannel.debug(`[MCP] Parsing SSE response (${lines.length} lines)`);
         
         for (const line of lines) {
             if (line.startsWith('data: ')) {
                 const jsonData = line.substring(6); // Remove 'data: ' prefix
+                ExtensionOutputChannel.debug(`[MCP] Found data line: ${jsonData.substring(0, 200)}...`);
                 try {
                     const parsed = JSON.parse(jsonData);
                     
                     // Check for JSONRPC error
                     if (parsed.error) {
+                        ExtensionOutputChannel.error(`[MCP] JSONRPC Error: ${JSON.stringify(parsed.error)}`);
                         throw new Error(`MCP Error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
                     }
                     
@@ -208,11 +224,13 @@ export class McpClient {
                     if (error.message.startsWith('MCP Error:')) {
                         throw error;
                     }
+                    ExtensionOutputChannel.error(`[MCP] JSON parse failed: ${error.message}`);
                     throw new Error(`Failed to parse SSE JSON: ${jsonData}`);
                 }
             }
         }
 
+        ExtensionOutputChannel.error(`[MCP] No valid SSE data found. Lines: ${lines.join(' | ')}`);
         throw new Error('No valid SSE data found in response');
     }
 

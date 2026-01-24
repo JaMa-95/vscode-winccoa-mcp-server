@@ -423,6 +423,100 @@
             "max"
           ]
         }
+      },
+      {
+        "name": "winccoa_modbus_address_get",
+        "displayName": "Get Modbus Address",
+        "modelDescription": "Gets the current Modbus address configuration from a datapoint element. Returns reference, datatype, direction, connection and device IDs. Use to query existing peripheral address settings before modifying.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_modbus_get",
+        "icon": "$(plug)",
+        "userDescription": "Get Modbus address configuration from a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpName": {
+              "type": "string",
+              "description": "Full datapoint element name (e.g., 'MyDevice.measurement.voltage')"
+            }
+          },
+          "required": [
+            "dpName"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_modbus_address_set",
+        "displayName": "Set Modbus Address",
+        "modelDescription": "Configures Modbus address settings for a datapoint element. Sets up both peripheral address (_address) and distribution (_distrib) configurations, connecting the datapoint to a Modbus device register. Use when connecting datapoints to Modbus devices.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_modbus",
+        "icon": "$(plug)",
+        "userDescription": "Configure Modbus address for a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpName": {
+              "type": "string",
+              "description": "Full datapoint element name (e.g., 'MyDevice.measurement.voltage')"
+            },
+            "connectionId": {
+              "type": "number",
+              "description": "Modbus connection ID (0-255)"
+            },
+            "deviceId": {
+              "type": "number",
+              "description": "Modbus device/slave ID (1-247)"
+            },
+            "registerAddress": {
+              "type": "number",
+              "description": "Modbus register address (1-65535)"
+            },
+            "datatype": {
+              "type": "number",
+              "description": "Modbus datatype (566=FLOAT32, 555=INT16, 556=UINT16, 557=INT32, 558=UINT32)"
+            },
+            "direction": {
+              "type": "number",
+              "description": "Address direction (4=INPUT_POLL, 1=OUTPUT, 7=IO_POLL)"
+            },
+            "active": {
+              "type": "boolean",
+              "description": "Enable address immediately (default: true)"
+            },
+            "lowlevel": {
+              "type": "boolean",
+              "description": "Enable low-level comparison (default: true)"
+            }
+          },
+          "required": [
+            "dpName",
+            "connectionId",
+            "deviceId",
+            "registerAddress"
+          ]
+        }
+      },
+      {
+        "name": "winccoa_modbus_address_remove",
+        "displayName": "Remove Modbus Address",
+        "modelDescription": "Removes Modbus address configuration from a datapoint element. Deactivates the address and clears distribution config.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "winccoa_modbus_del",
+        "icon": "$(plug)",
+        "userDescription": "Remove Modbus address from a datapoint",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dpName": {
+              "type": "string",
+              "description": "Full datapoint element name"
+            }
+          },
+          "required": [
+            "dpName"
+          ]
+        }
       }
     ],
     "configuration": {

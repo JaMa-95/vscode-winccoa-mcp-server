@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-01-24
+
+### ✨ Added
+- **Modbus Address Configuration Tools**: 3 new tools for Modbus device integration
+  - **Get Address Config**: `winccoa_modbus_address_get` - Retrieve Modbus address settings
+  - **Set Address Config**: `winccoa_modbus_address_set` - Configure Modbus addresses for datapoints
+  - **Remove Address Config**: `winccoa_modbus_address_remove` - Remove Modbus address configuration
+
+### 📊 Enhanced
+- **Tool Count**: Expanded from 13 to 16 Language Model Tools
+  - Seamless integration with WinCC OA Modbus driver
+  - Supports peripheral and distribution address configuration
+  - Compatible with existing Modbus connection setup
+
 ## [1.4.0] - 2026-01-23
 
 ### ✨ Added

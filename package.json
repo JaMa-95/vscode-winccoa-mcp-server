@@ -253,7 +253,46 @@
               "description": "Name of the datapoint type"
             },
             "structure": {
-              "description": "Structure definition (JSON tree with name, type, children)"
+              "type": "object",
+              "description": "Structure definition (JSON tree with name, type, children)",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Name of the root structure"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["Struct"],
+                  "description": "Type must be 'Struct'"
+                },
+                "children": {
+                  "type": "array",
+                  "description": "Array of child elements",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Element name"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": ["Bool", "Int", "UInt", "Float", "String", "Char", "Time", "Bit32", "Bit64", "DynBool", "DynInt", "DynUInt", "DynFloat", "DynString", "DynChar", "DynTime"],
+                        "description": "Element data type"
+                      },
+                      "children": {
+                        "type": "array",
+                        "description": "Nested children (for nested structs)",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    },
+                    "required": ["name", "type"]
+                  }
+                }
+              },
+              "required": ["name", "type", "children"]
             }
           },
           "required": [

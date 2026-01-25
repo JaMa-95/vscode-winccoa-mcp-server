@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -97,7 +97,8 @@
           "properties": {
             "pattern": {
               "type": "string",
-              "description": "Search pattern with wildcards (e.g., '*Pump*', 'System1:*')"
+              "description": "Datapoint search pattern with wildcards. Format: 'System:DpName*', 'DpName*', or '*substring*'. Examples: 'System1:*' (all in System1), '*Pump*' (all containing Pump), 'Tank_*' (all starting with Tank_), 'ExampleDP_Arg1.' (exact match). Use '*' to list all datapoints (warning: can be thousands!).",
+              "minLength": 1
             }
           },
           "required": [
@@ -118,7 +119,8 @@
           "properties": {
             "dpe": {
               "type": "string",
-              "description": "Datapoint element name (e.g., 'System1:Pump.state')"
+              "description": "Full datapoint element name to read. Format: 'System:DpName.Element.SubElement' or 'DpName.Element'. Examples: 'System1:Pump_01.state' (read pump state), 'Tank_Level.measurement' (read tank sensor), 'ExampleDP_Arg1.:_original.._value' (read internal value)",
+              "minLength": 1
             }
           },
           "required": [
@@ -139,7 +141,8 @@
           "properties": {
             "pattern": {
               "type": "string",
-              "description": "Type name pattern with wildcards (default: '*')"
+              "description": "Type name search pattern with wildcards. Use '*' for all types, 'Pump*' for all pump types, '_*' for internal types. Examples: '*' (all), 'ExampleDP*' (all ExampleDP types), '_FwAlarmHdl*' (framework alarm types). Default: '*' (returns all types).",
+              "default": "*"
             }
           }
         }
@@ -157,7 +160,8 @@
           "properties": {
             "managerName": {
               "type": "string",
-              "description": "Name of the manager"
+              "description": "Name of the manager to query. Format: 'MANAGER_NUM' or exact manager identifier. Examples: 'DIST_1' (distribution manager), 'EVENT_1' (event manager), 'WCCOActrl_3' (CTRL manager #3), 'VALARCH' (value archive). Use winccoa_list_managers to see all available managers.",
+              "minLength": 1
             }
           },
           "required": [
@@ -178,19 +182,26 @@
           "properties": {
             "dpeName": {
               "type": "string",
-              "description": "Name of the datapoint to create"
+              "description": "Name of the datapoint to create. Format: 'DpName' without system prefix. Examples: 'Pump_01', 'Tank_Level', 'Sensor_Temperature_Hall1', '_mp_MyDPT' (master datapoint). Use descriptive names following project naming conventions. Master datapoints start with '_mp_'.",
+              "pattern": "^(_mp_)?[a-zA-Z][a-zA-Z0-9_]*$"
             },
             "dpType": {
               "type": "string",
-              "description": "Type of the datapoint (e.g., 'ExampleDP_Float', '_FwNode')"
+              "description": "Datapoint type name (must exist in WinCC OA). Common built-in types: 'ExampleDP_Float', 'ExampleDP_Int', 'ExampleDP_Bool', 'ExampleDP_Bit32', 'ExampleDP_Char', 'ExampleDP_String', 'ExampleDP_Time', 'ExampleDP_Dpid'. Use 'winccoa_get_dptypes' to list available types in the project.",
+              "minLength": 1
             },
             "systemId": {
-              "type": "number",
-              "description": "System ID for distributed systems (optional)"
+              "type": "integer",
+              "description": "System ID for distributed WinCC OA systems (optional). Default: 1 (local system). Valid range: 1-255. Only needed in multi-system configurations.",
+              "minimum": 1,
+              "maximum": 255,
+              "default": 1
             },
             "dpId": {
-              "type": "number",
-              "description": "Specific datapoint ID (optional, random if not provided)"
+              "type": "integer",
+              "description": "Specific datapoint ID to assign (optional, WinCC OA auto-generates if not provided). Valid range: 1-2147483647. WARNING: Duplicate IDs will cause errors!",
+              "minimum": 1,
+              "maximum": 2147483647
             }
           },
           "required": [
@@ -212,10 +223,11 @@
           "properties": {
             "dpeName": {
               "type": "string",
-              "description": "Datapoint element name (e.g., 'System1:Pump.cmd.start')"
+              "description": "Full datapoint element name with system prefix and element path. Format: 'System:DpName.Element.SubElement' or 'DpName.Element'. Examples: 'System1:Pump_01.cmd.start', 'Tank_Level.value', 'Sensor_Temperature_Hall1.measurement'",
+              "minLength": 1
             },
             "value": {
-              "description": "Value to write (type depends on datapoint type)"
+              "description": "Value to write - type must match datapoint element type. Numbers for numeric types, strings for text, boolean for bool, array for dyn types. Examples: 123.45 (float), true (bool), 'Running' (string), [1,2,3] (dyn_int)"
             }
           },
           "required": [
@@ -262,33 +274,37 @@
           "properties": {
             "dpe": {
               "type": "string",
-              "description": "Datapoint element name"
+              "description": "Datapoint element to configure alarm on. Format: 'System:DpName.Element' or 'DpName.Element'. Examples: 'System1:Tank_Level.measurement', 'Pump_Temperature.value'",
+              "minLength": 1
             },
             "direction": {
               "type": "string",
-              "enum": [
-                "ASC",
-                "DESC"
-              ],
-              "description": "ASC (ascending) or DESC (descending)"
+              "enum": ["ASC", "DESC"],
+              "description": "Alarm direction: ASC (ascending, higher values trigger higher severity) or DESC (descending, lower values trigger higher severity). Example: ASC for high temperature alarm, DESC for low level alarm. Default classes: ASC=['information.','warning.','alert.'], DESC=['alert.','warning.','information.'].",
+              "default": "ASC"
             },
             "thresholds": {
               "type": "array",
               "items": {
                 "type": "number"
               },
-              "description": "Threshold values (1-3 values for analog alarms)"
+              "description": "Threshold values for analog alarms (1-3 values). Order: [warning, alarm, severe] for ASC or [low_severe, low_alarm, low_warning] for DESC. Examples: [80.0, 90.0, 95.0] for tank level warnings at 80%/90%/95%.",
+              "minItems": 1,
+              "maxItems": 3
             },
             "alarmClasses": {
               "type": "array",
               "items": {
                 "type": "string"
               },
-              "description": "Custom alarm class names (optional)"
+              "description": "WinCC OA alarm class names corresponding to each threshold (must match threshold count). Common values: '_warning', '_alert', '_error'. Defaults to standard classes if omitted.",
+              "minItems": 1,
+              "maxItems": 3
             },
             "force": {
               "type": "boolean",
-              "description": "Force update if configuration exists"
+              "description": "Force update if alarm config already exists. false = skip if exists, true = overwrite existing config.",
+              "default": false
             }
           },
           "required": [
@@ -331,15 +347,18 @@
           "properties": {
             "dpe": {
               "type": "string",
-              "description": "Datapoint element name"
+              "description": "Datapoint element to enable archiving on. Format: 'System:DpName.Element' or 'DpName.Element'. Examples: 'System1:Tank_Level.measurement', 'Pump_Speed.value', 'Temperature_Sensor_Hall1.reading'",
+              "minLength": 1
             },
             "archiveClass": {
               "type": "string",
-              "description": "Archive class name (default: '_NGA_G_EVENT')"
+              "description": "WinCC OA archive class name (predefined in project). Common values: '_NGA_G_EVENT' (value change), '_NGA_G_1S' (1 second), '_NGA_G_1M' (1 minute), '_NGA_G_1H' (1 hour). Default is event-driven archiving.",
+              "default": "_NGA_G_EVENT"
             },
             "force": {
               "type": "boolean",
-              "description": "Force update if configuration exists"
+              "description": "Force update if archive config already exists. false = skip if exists, true = overwrite existing config.",
+              "default": false
             }
           },
           "required": [
@@ -360,20 +379,24 @@
           "properties": {
             "dpe": {
               "type": "string",
-              "description": "Datapoint element name"
+              "description": "Datapoint element to configure. Format: 'System:DpName.Element' or 'DpName.Element'. Examples: 'System1:Tank_Level.measurement', 'Pump_01.cmd.start'",
+              "minLength": 1
             },
             "description": {
-              "description": "Multi-language description (UTF-8) or string"
+              "type": "string",
+              "description": "Human-readable description for operators/documentation. Examples: 'Main tank level sensor in Hall 3', 'Pump emergency stop command'. Supports multi-language via WinCC OA lang mapping if needed."
             },
             "alias": {
               "type": "string",
-              "description": "Alias name"
+              "description": "Short alias/tag name for display in SCADA panels. Examples: 'TK_LVL_H3', 'P01_ESTOP'. Typically uppercase with underscores."
             },
             "format": {
-              "description": "Multi-language format (UTF-8) or string"
+              "type": "string",
+              "description": "Display format string for numeric values. Examples: '%.2f' (2 decimals), '%d' (integer), '%.1f °C' (1 decimal with unit). Use standard printf formatting."
             },
             "unit": {
-              "description": "Multi-language unit (UTF-8) or string"
+              "type": "string",
+              "description": "Engineering unit for measurement values. Examples: 'm' (meters), '°C', 'bar', 'kW', 'rpm', '%'. Displayed in trends and SCADA panels."
             }
           },
           "required": [
@@ -394,27 +417,31 @@
           "properties": {
             "dpe": {
               "type": "string",
-              "description": "Datapoint element name"
+              "description": "Datapoint element to set range limits on. Format: 'System:DpName.Element' or 'DpName.Element'. Examples: 'System1:Valve_Position.setpoint', 'Temperature_Sensor.value'",
+              "minLength": 1
             },
             "min": {
               "type": "number",
-              "description": "Minimum value"
+              "description": "Minimum allowed value. WinCC OA rejects writes below this value. Examples: 0.0 for percentage, -40.0 for temperature in °C, 0 for unsigned counters."
             },
             "max": {
               "type": "number",
-              "description": "Maximum value"
+              "description": "Maximum allowed value. WinCC OA rejects writes above this value. Examples: 100.0 for percentage, 150.0 for temperature in °C, 65535 for 16-bit counter."
             },
             "includeMin": {
               "type": "boolean",
-              "description": "Include min in valid range (default: true)"
+              "description": "Include minimum value in valid range. true = value >= min allowed, false = value > min required (excludes exact min). Default: true.",
+              "default": true
             },
             "includeMax": {
               "type": "boolean",
-              "description": "Include max in valid range (default: true)"
+              "description": "Include maximum value in valid range. true = value <= max allowed, false = value < max required (excludes exact max). Default: true.",
+              "default": true
             },
             "force": {
               "type": "boolean",
-              "description": "Force update if configuration exists"
+              "description": "Force update if PV range config already exists. false = skip if exists, true = overwrite existing config.",
+              "default": false
             }
           },
           "required": [
@@ -458,35 +485,49 @@
           "properties": {
             "dpName": {
               "type": "string",
-              "description": "Full datapoint element name (e.g., 'MyDevice.measurement.voltage')"
+              "description": "Full datapoint element name including system prefix (format: 'System:DpName.Element' or 'DpName.Element'). Example: 'ModbusDevice_1.measurements.temperature'"
             },
             "connectionId": {
-              "type": "number",
-              "description": "Modbus connection ID (0-255)"
+              "type": "integer",
+              "description": "Modbus connection ID as configured in WinCC OA Modbus driver (valid range: 0-255)",
+              "minimum": 0,
+              "maximum": 255
             },
             "deviceId": {
-              "type": "number",
-              "description": "Modbus device/slave ID (1-247)"
+              "type": "integer",
+              "description": "Modbus slave/device ID on the bus (valid range: 1-247, typically 1-255)",
+              "minimum": 1,
+              "maximum": 247
             },
             "registerAddress": {
-              "type": "number",
-              "description": "Modbus register address (1-65535)"
+              "type": "integer",
+              "description": "Modbus register address to read/write (valid range: 0-65535). Use Modbus documentation to find correct address.",
+              "minimum": 0,
+              "maximum": 65535
             },
             "datatype": {
-              "type": "number",
-              "description": "Modbus datatype (566=FLOAT32, 555=INT16, 556=UINT16, 557=INT32, 558=UINT32)"
+              "type": "integer",
+              "minimum": 550,
+              "maximum": 568,
+              "description": "Modbus datatype transformation (550-568). Common values: 550=DEFAULT(auto), 551=COIL(1bit), 552=DISCRETE_INPUT, 553=HOLDING_REGISTER, 554=INPUT_REGISTER, 555=INT16, 556=UINT16, 557=INT32, 558=UINT32, 566=FLOAT32, 567=FLOAT64, 568=STRING. Default: 566 (FLOAT32).",
+              "default": 566
             },
             "direction": {
-              "type": "number",
-              "description": "Address direction (4=INPUT_POLL, 1=OUTPUT, 7=IO_POLL)"
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 15,
+              "description": "Address direction mode (0-15). Common values: 0=UNDEFINED, 1=OUTPUT, 2=INPUT_SPONT, 4=INPUT_POLL(cyclic read), 6=IO_SPONT, 7=IO_POLL(bidirectional), 11=INPUT_CYCLIC_ON_USE. Default: 4 (INPUT_POLL).",
+              "default": 4
             },
             "active": {
               "type": "boolean",
-              "description": "Enable address immediately (default: true)"
+              "description": "Activate address immediately after configuration (default: true)",
+              "default": true
             },
             "lowlevel": {
               "type": "boolean",
-              "description": "Enable low-level comparison (default: true)"
+              "description": "Enable low-level value comparison to reduce network traffic (default: true)",
+              "default": true
             }
           },
           "required": [

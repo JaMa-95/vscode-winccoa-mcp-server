@@ -1038,7 +1038,19 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
                 throw new Error('No response from MCP server');
             }
 
-            const response = JSON.parse(result.content[0].text!);
+            // Parse response - could be success or error
+            let response;
+            try {
+                response = JSON.parse(result.content[0].text!);
+            } catch (parseError) {
+                // If JSON parse fails, return raw text as error
+                throw new Error(`Invalid MCP response: ${result.content[0].text}`);
+            }
+
+            // Check if response contains error
+            if (response.error) {
+                throw new Error(response.message || 'MCP tool execution failed');
+            }
             
             return new vscode.LanguageModelToolResult([
                 new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))

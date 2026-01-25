@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - TBD
+
+### 🛠️ Improved
+- **Language Model Tool JSON Schemas**: Comprehensive improvements to all tool input schemas for better AI code generation
+  - **CRITICAL FIX**: Corrected Modbus `datatype` range to 550-568 (was incorrectly limited to 555-561,566) - now includes all WinCC OA Modbus datatypes (COIL, DISCRETE_INPUT, HOLDING_REGISTER, INPUT_REGISTER, INT16, UINT16, INT32, UINT32, FLOAT32, FLOAT64, STRING)
+  - **CRITICAL FIX**: Corrected Modbus `direction` range to 0-15 (was incorrectly limited to 1,4,7) - now includes all address modes (UNDEFINED, OUTPUT, INPUT_SPONT, INPUT_POLL, IO_SPONT, IO_POLL, INPUT_CYCLIC_ON_USE, etc.)
+  - Added `integer` type with min/max constraints for numeric IDs (connection, device, register, system, dp)
+  - Added enums for fixed-value parameters (alarm direction ASC/DESC, archive classes)
+  - Added `pattern` validation for datapoint names (`^[a-zA-Z][a-zA-Z0-9_]*$`)
+  - Added comprehensive descriptions with real-world examples for all parameters
+  - Added default values for optional parameters
+  - Improved tools: `winccoa_modbus_address_set`, `winccoa_create_datapoint`, `winccoa_dp_set`, `winccoa_alarm_set`, `winccoa_archive_set`, `winccoa_common_set`, `winccoa_pv_range_set`, `winccoa_get_value`, `winccoa_get_dptypes`, `winccoa_get_datapoints`, `winccoa_get_manager_status`
+  - **Validation**: All schemas verified against actual MCP Server implementation in `winccoa-ae-js-mcpserver` repository
+  - **Impact**: GitHub Copilot and Claude now generate significantly more accurate JSON parameters, reducing configuration errors
+
 ## [1.6.0] - 2026-01-25
 
 ### ✨ Added

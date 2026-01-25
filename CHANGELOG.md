@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.1] - TBD
+## [1.6.1] - 2026-01-25
 
 ### 🛠️ Improved
 - **Language Model Tool JSON Schemas**: Comprehensive improvements to all tool input schemas for better AI code generation

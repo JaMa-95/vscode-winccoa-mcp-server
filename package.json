@@ -4,6 +4,7 @@
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
   "version": "1.6.1",
+  "preview": true,
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",

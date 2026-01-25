@@ -14,8 +14,15 @@
 
 ---
 
-> **Disclaimer:**
-> This is the first stable release (v1.0.0) of the WinCC OA MCP Server extension. Not all features are fully implemented and some functions may not work perfectly yet. Please report any issues you encounter.
+> **⚠️ EXPERIMENTAL - Preview Release**
+> 
+> This extension is in **experimental/preview** state. Features may change, break, or be incomplete.
+> 
+> **Known Limitations:**
+> - Not all MCP Server features are available when using the **npm package installation method**
+> - Some tools (e.g., Modbus, advanced datapoint operations) require the **Git installation method**
+> - If you encounter missing tools or errors, switch to Git installation in settings: `"winccoa.mcp.installMethod": "git"`
+> 
 > **Tip:** If the extension doesn't work as expected, try `Ctrl+Shift+P` → `Reload Window` to refresh.
 
 ---

@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
+import simpleGit from 'simple-git';
 import { ExtensionOutputChannel } from './extensionOutput';
 import { ManagerInstallationHelper } from './managerInstallationHelper';
 
@@ -60,16 +61,22 @@ export class SetupWizard {
                     ExtensionOutputChannel.warn(`Could not delete folder (may not exist): ${error.message}`);
                 }
 
-                progress.report({ increment: 20, message: 'Installing MCP Server package...' });
-                await this.installFromNpm(projectDir);
+                // Get install method from settings
+                const config = vscode.workspace.getConfiguration('winccoa.mcp');
+                const installMethod = config.get<string>('installMethod', 'git');
 
-                progress.report({ increment: 50, message: 'Installing WinCC OA Manager...' });
-                await this.installWinCCOAManager(projectDir, oaInstallPath);
+                progress.report({ increment: 20, message: `Installing via ${installMethod}...` });
+                
+                if (installMethod === 'git') {
+                    await this.installFromGit(projectDir, oaInstallPath);
+                } else {
+                    await this.installFromNpm(projectDir, oaInstallPath);
+                }
 
-                progress.report({ increment: 70, message: 'Generating security token...' });
+                progress.report({ increment: 85, message: 'Generating security token...' });
                 const token = this.generateToken();
 
-                progress.report({ increment: 85, message: 'Creating configuration...' });
+                progress.report({ increment: 95, message: 'Creating configuration...' });
                 await this.createEnvFile(projectDir, token);
 
                 progress.report({ increment: 100, message: 'Reset complete!' });
@@ -108,25 +115,30 @@ export class SetupWizard {
         }
 
         try {
+            // Get install method from settings
+            const config = vscode.workspace.getConfiguration('winccoa.mcp');
+            const installMethod = config.get<string>('installMethod', 'git');
+
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: `Installing MCP Server for ${projectName}`,
                 cancellable: false
             }, async (progress) => {
-                // Step 1: Install NPM Package
-                progress.report({ increment: 0, message: 'Installing MCP Server package...' });
-                await this.installFromNpm(projectDir);
+                // Step 1: Install MCP Server (NPM or Git)
+                progress.report({ increment: 0, message: `Installing via ${installMethod}...` });
+                
+                if (installMethod === 'git') {
+                    await this.installFromGit(projectDir, oaInstallPath);
+                } else {
+                    await this.installFromNpm(projectDir, oaInstallPath);
+                }
 
-                // Step 2: Install WinCC OA Manager (peer dependency)
-                progress.report({ increment: 40, message: 'Installing WinCC OA Manager...' });
-                await this.installWinCCOAManager(projectDir, oaInstallPath);
-
-                // Step 3: Generate Token
-                progress.report({ increment: 60, message: 'Generating security token...' });
+                // Step 2: Generate Token
+                progress.report({ increment: 80, message: 'Generating security token...' });
                 const token = this.generateToken();
 
-                // Step 4: Create .env File
-                progress.report({ increment: 80, message: 'Creating configuration...' });
+                // Step 3: Create .env File
+                progress.report({ increment: 90, message: 'Creating configuration...' });
                 await this.createEnvFile(projectDir, token);
 
                 progress.report({ increment: 100, message: 'Installation complete!' });
@@ -155,7 +167,7 @@ export class SetupWizard {
     /**
      * Install MCP Server from NPM package
      */
-    private static async installFromNpm(projectDir: string): Promise<void> {
+    private static async installFromNpm(projectDir: string, oaInstallPath: string): Promise<void> {
         const mcpServerDir = path.join(projectDir, this.MCP_SUBPATH);
         
         // Create directory structure
@@ -176,6 +188,148 @@ export class SetupWizard {
 
         ExtensionOutputChannel.info('✅ MCP Server package installed successfully');
         ExtensionOutputChannel.info('✅ postinstall copied files to installation directory');
+
+        // Install winccoa-manager
+        await this.installWinCCOAManager(projectDir, oaInstallPath);
+    }
+
+    /**
+     * Install MCP Server from Git repository
+     */
+    private static async installFromGit(projectDir: string, oaInstallPath: string): Promise<void> {
+        const config = vscode.workspace.getConfiguration('winccoa.mcp');
+        const gitUrl = config.get<string>('gitRepositoryUrl', 'https://github.com/RichardJanisch/winccoa-ae-js-mcpserver.git');
+        const gitBranch = config.get<string>('gitBranch', 'main');
+
+        const mcpServerDir = path.join(projectDir, this.MCP_SUBPATH);
+        const tempBuildDir = path.join(projectDir, 'javascript', '.mcp-build-temp');
+
+        ExtensionOutputChannel.info(`Installing from Git: ${gitUrl} (branch: ${gitBranch})`);
+
+        try {
+            // Step 1: Clean up temp and target directories
+            await fs.rm(tempBuildDir, { recursive: true, force: true });
+            await fs.rm(mcpServerDir, { recursive: true, force: true });
+
+            // Step 2: Clone repository
+            ExtensionOutputChannel.info(`Cloning repository to: ${tempBuildDir}`);
+            const git = simpleGit();
+            await git.clone(gitUrl, tempBuildDir, ['--branch', gitBranch, '--depth', '1']);
+            ExtensionOutputChannel.info('✅ Git clone successful');
+
+            // Step 3: Detect source directory (mcpWinCCOA subdirectory or root)
+            const mcpWinCCOAPath = path.join(tempBuildDir, 'mcpWinCCOA');
+            let buildSourceDir: string;
+            
+            try {
+                await fs.access(mcpWinCCOAPath);
+                buildSourceDir = mcpWinCCOAPath;
+                ExtensionOutputChannel.info('Using mcpWinCCOA subdirectory');
+            } catch {
+                buildSourceDir = tempBuildDir;
+                ExtensionOutputChannel.info('Using repository root');
+            }
+
+            // Step 4: Clean old package-lock.json
+            try {
+                await fs.rm(path.join(buildSourceDir, 'package-lock.json'), { force: true });
+            } catch {}
+
+            // Step 5: Install ALL dependencies (including devDependencies for TypeScript)
+            ExtensionOutputChannel.info('Installing dependencies (including TypeScript)...');
+            const installResult = await this.executeCommand('npm', ['install'], buildSourceDir);
+            if (installResult.exitCode !== 0) {
+                throw new Error(`npm install failed: ${installResult.stderr}`);
+            }
+
+            // Step 6: Build TypeScript
+            ExtensionOutputChannel.info('Building TypeScript sources...');
+            const buildResult = await this.executeCommand('npx', ['tsc'], buildSourceDir);
+            if (buildResult.exitCode !== 0) {
+                throw new Error(`TypeScript build failed: ${buildResult.stderr}`);
+            }
+
+            // Step 7: Create final installation directory
+            await fs.mkdir(mcpServerDir, { recursive: true });
+
+            // Step 8: Copy build/* contents to ROOT (mimicking NPM postinstall)
+            ExtensionOutputChannel.info('Copying build files to installation directory...');
+            const buildDir = path.join(buildSourceDir, 'build');
+            await this.copyDirectoryContents(buildDir, mcpServerDir);
+
+            // Step 9: Copy additional files
+            await this.copyFileIfExists(path.join(buildSourceDir, '.env.example'), path.join(mcpServerDir, '.env.example'));
+            await this.copyFileIfExists(path.join(buildSourceDir, 'src', 'systemprompt.md'), path.join(mcpServerDir, 'systemprompt.md'));
+            await this.copyFileIfExists(path.join(buildSourceDir, 'package.json'), path.join(mcpServerDir, 'package.json'));
+            await this.copyFileIfExists(path.join(buildSourceDir, 'postinstall.cjs'), path.join(mcpServerDir, 'postinstall.cjs'));
+            await this.copyFileIfExists(path.join(buildSourceDir, 'config', 'demo-project-instructions.md'), path.join(mcpServerDir, 'demo-project-instructions.md'));
+            await this.copyDirectoryIfExists(path.join(buildSourceDir, 'src', 'fields'), path.join(mcpServerDir, 'fields'));
+
+            // Step 10: Install production dependencies
+            ExtensionOutputChannel.info('Installing production dependencies...');
+            const prodInstallResult = await this.executeCommand('npm', ['install', '--omit=dev'], mcpServerDir);
+            if (prodInstallResult.exitCode !== 0) {
+                throw new Error(`Production install failed: ${prodInstallResult.stderr}`);
+            }
+
+            // Step 11: Install winccoa-manager
+            await this.installWinCCOAManager(projectDir, oaInstallPath);
+
+            // Step 12: Cleanup temp directory
+            await fs.rm(tempBuildDir, { recursive: true, force: true });
+
+            ExtensionOutputChannel.info('✅ Git installation completed successfully');
+
+        } catch (error: any) {
+            // Cleanup on error
+            try {
+                await fs.rm(tempBuildDir, { recursive: true, force: true });
+            } catch {}
+            throw error;
+        }
+    }
+
+    /**
+     * Copy directory contents recursively
+     */
+    private static async copyDirectoryContents(source: string, dest: string): Promise<void> {
+        const entries = await fs.readdir(source, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            const sourcePath = path.join(source, entry.name);
+            const destPath = path.join(dest, entry.name);
+            
+            if (entry.isDirectory()) {
+                await fs.cp(sourcePath, destPath, { recursive: true });
+            } else {
+                await fs.copyFile(sourcePath, destPath);
+            }
+        }
+    }
+
+    /**
+     * Copy file if it exists
+     */
+    private static async copyFileIfExists(source: string, dest: string): Promise<void> {
+        try {
+            await fs.copyFile(source, dest);
+            ExtensionOutputChannel.debug(`Copied: ${path.basename(source)}`);
+        } catch {
+            ExtensionOutputChannel.debug(`Skipped (not found): ${path.basename(source)}`);
+        }
+    }
+
+    /**
+     * Copy directory if it exists
+     */
+    private static async copyDirectoryIfExists(source: string, dest: string): Promise<void> {
+        try {
+            await fs.access(source);
+            await fs.cp(source, dest, { recursive: true });
+            ExtensionOutputChannel.debug(`Copied directory: ${path.basename(source)}`);
+        } catch {
+            ExtensionOutputChannel.debug(`Skipped directory (not found): ${path.basename(source)}`);
+        }
     }
 
 
@@ -256,7 +410,7 @@ MCP_CORS_ORIGINS=*
 WINCCOA_FIELD=default
 
 # Available Tools (comma-separated)
-TOOLS=datapoints/dp_basic,datapoints/dp_create,datapoints/dp_set,manager/manager_list,archive/archive_query,dptypes/dptype_basic
+TOOLS=datapoints/dp_basic,datapoints/dp_create,datapoints/dp_set,datapoints/dp_types,datapoints/dp_type_create,manager/manager_list,manager/manager_add,manager/manager_control,manager/manager_properties,manager/manager_remove,archive/archive_query,archive/archive_set,archive/archive_delete,alarms/alarm_set,alarms/alarm_delete,common/common_query,common/common_set,common/common_delete,pv_range/pv_range_query,pv_range/pv_range_set,pv_range/pv_range_delete,modbus/modbus_address,opcua/opcua_address,opcua/opcua_connection,dashboards/dashboard,dashboards/widget,icons/icon
 `;
 
         // Ensure build directory exists

@@ -3,7 +3,7 @@
   "displayName": "WinCC OA MCP Server",
   "description": "Model Context Protocol server for WinCC OA - enables AI assistants to interact with WinCC OA projects",
   "publisher": "RichardJanisch",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "author": "Richard Janisch",
   "license": "MIT",
   "icon": "resources/wincc_oa_mcp_512.png",
@@ -562,6 +562,29 @@
           "type": "boolean",
           "default": true,
           "description": "Show connection status notifications (reconnect success/failure)"
+        },
+        "winccoa.mcp.installMethod": {
+          "type": "string",
+          "enum": [
+            "npm",
+            "git"
+          ],
+          "default": "npm",
+          "description": "Installation method for MCP Server",
+          "enumDescriptions": [
+            "Install from official NPM package (@etm-professional-control/winccoa-mcp-server)",
+            "Install from Git repository (allows using custom forks with additional features)"
+          ]
+        },
+        "winccoa.mcp.gitRepositoryUrl": {
+          "type": "string",
+          "default": "https://github.com/RichardJanisch/winccoa-ae-js-mcpserver.git",
+          "description": "Git repository URL for MCP Server (only used when installMethod is 'git')"
+        },
+        "winccoa.mcp.gitBranch": {
+          "type": "string",
+          "default": "main",
+          "description": "Git branch to use (only used when installMethod is 'git')"
         }
       }
     }

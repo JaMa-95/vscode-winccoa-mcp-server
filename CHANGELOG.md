@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-01-25
+
+### ✨ Added
+- **Git Repository Installation Support**: Install MCP Server from custom Git repositories
+  - New setting `winccoa.mcp.installMethod`: Choose between "npm" or "git" installation
+  - New setting `winccoa.mcp.gitRepositoryUrl`: Configure custom Git repository URL
+  - New setting `winccoa.mcp.gitBranch`: Select specific branch for installation
+  - Default configuration uses RichardJanisch fork with Modbus enhancements
+  - Full TypeScript build workflow integrated (clone → build → install)
+  - Production-ready installation matching NPM package structure
+
+### 📊 Enhanced
+- **Flexible MCP Server Sources**: Users can now install from custom forks with additional features
+- **Automatic Build Process**: TypeScript compilation and dependency management handled automatically
+- **Identical Output**: Git installation produces identical structure as NPM package
+  - Proper file flattening (build/* to root)
+  - All configuration files copied (.env.example, systemprompt.md, etc.)
+  - Production dependencies installed correctly
+  - winccoa-manager integration maintained
+
+### 🔧 Fixed
+- Resolved PMON settings issue in .env (removed invalid settings that caused startup failures)
+- Fixed package-lock.json conflicts during Git installation
+- Improved cleanup of temporary build directories
+
 ## [1.5.0] - 2026-01-24
 
 ### ✨ Added

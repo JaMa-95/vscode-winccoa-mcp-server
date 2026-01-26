@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-01-26
+
+### 🔧 Fixed
+- Updated workspace configuration to use FinalMCPTest project
+
 ## [1.6.1] - 2026-01-25
 
 ### 🛠️ Improved

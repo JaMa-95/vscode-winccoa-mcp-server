@@ -515,7 +515,7 @@
       {
         "name": "winccoa_modbus_address_set",
         "displayName": "Set Modbus Address",
-        "modelDescription": "Configures Modbus address settings for a datapoint element. Sets up both peripheral address (_address) and distribution (_distrib) configurations, connecting the datapoint to a Modbus device register. Use when connecting datapoints to Modbus devices.",
+        "modelDescription": "Configures Modbus address settings for a datapoint element. Sets up both peripheral address (_address) and distribution (_distrib) configurations. The reference format is M.<ConnectionId>.<FunctionCode>.<RegisterAddress> where FunctionCode determines the Modbus operation (1=ReadCoils, 2=ReadDiscreteInputs, 3=ReadHoldingRegisters, 4=ReadInputRegisters, 5=WriteCoil, 6=WriteSingleRegister, 15=WriteMultipleCoils, 16=WriteMultipleRegisters).",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "winccoa_modbus",
         "icon": "$(plug)",
@@ -533,11 +533,11 @@
               "minimum": 0,
               "maximum": 255
             },
-            "deviceId": {
+            "functionCode": {
               "type": "integer",
-              "description": "Modbus slave/device ID on the bus (valid range: 1-247, typically 1-255)",
+              "description": "Modbus function code determining the operation type: 1=FC01 Read Coils, 2=FC02 Read Discrete Inputs, 3=FC03 Read Holding Registers, 4=FC04 Read Input Registers, 5=FC05 Write Single Coil, 6=FC06 Write Single Register, 15=FC15 Write Multiple Coils, 16=FC16 Write Multiple Registers",
               "minimum": 1,
-              "maximum": 247
+              "maximum": 24
             },
             "registerAddress": {
               "type": "integer",
@@ -549,7 +549,7 @@
               "type": "integer",
               "minimum": 550,
               "maximum": 568,
-              "description": "Modbus datatype transformation (550-568). Common values: 550=DEFAULT(auto), 551=COIL(1bit), 552=DISCRETE_INPUT, 553=HOLDING_REGISTER, 554=INPUT_REGISTER, 555=INT16, 556=UINT16, 557=INT32, 558=UINT32, 566=FLOAT32, 567=FLOAT64, 568=STRING. Default: 566 (FLOAT32).",
+              "description": "Modbus datatype transformation. Verified values: 566=FLOAT (32-bit), 567=BIT (for coils/discrete inputs). Default: 566 (FLOAT).",
               "default": 566
             },
             "direction": {
@@ -573,7 +573,7 @@
           "required": [
             "dpName",
             "connectionId",
-            "deviceId",
+            "functionCode",
             "registerAddress"
           ]
         }

@@ -969,7 +969,7 @@ class ModbusAddressGetTool implements vscode.LanguageModelTool<{
 class ModbusAddressSetTool implements vscode.LanguageModelTool<{
     dpName: string;
     connectionId: number;
-    deviceId: number;
+    functionCode: number;
     registerAddress: number;
     datatype?: number;
     direction?: number;
@@ -982,7 +982,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationPrepareOptions<{
             dpName: string;
             connectionId: number;
-            deviceId: number;
+            functionCode: number;
             registerAddress: number;
             datatype?: number;
             direction?: number;
@@ -991,7 +991,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
         }>,
         token: vscode.CancellationToken
     ): Promise<vscode.PreparedToolInvocation> {
-        const reference = `M.${options.input.connectionId}.${options.input.deviceId}.${options.input.registerAddress}`;
+        const reference = `M.${options.input.connectionId}.${options.input.functionCode}.${options.input.registerAddress}`;
         return {
             invocationMessage: `Configuring Modbus address for ${options.input.dpName}...`,
             confirmationMessages: {
@@ -1000,7 +1000,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
                     `Do you want to configure Modbus address for **${options.input.dpName}**?\n\n` +
                     `Reference: **${reference}**\n` +
                     `Connection ID: **${options.input.connectionId}**\n` +
-                    `Device ID: **${options.input.deviceId}**\n` +
+                    `Function Code: **${options.input.functionCode}**\n` +
                     `Register: **${options.input.registerAddress}**\n\n` +
                     `⚠️ This will configure peripheral address in your WinCC OA system.`
                 )
@@ -1012,7 +1012,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationOptions<{
             dpName: string;
             connectionId: number;
-            deviceId: number;
+            functionCode: number;
             registerAddress: number;
             datatype?: number;
             direction?: number;
@@ -1026,7 +1026,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
             const result = await client.callTool('modbus-add-address-config', {
                 dpName: options.input.dpName,
                 connectionId: options.input.connectionId,
-                deviceId: options.input.deviceId,
+                functionCode: options.input.functionCode,
                 registerAddress: options.input.registerAddress,
                 datatype: options.input.datatype,
                 direction: options.input.direction,

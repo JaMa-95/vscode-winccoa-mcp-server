@@ -99,5 +99,5 @@ test:
 	npm test
 
 # Local test target - Build, package with local stamp, replace extension, restart VS Code
-test-local:
+test-local: build
 	@node scripts/test-local.js $(BIN_DIR) $(EXTENSION_NAME) $(VERSION) $(EXT_ID) $(CODE_BIN) $(TEST_WORKSPACE)

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-02-14
+
+### ✨ Added
+- **Runtime Manager Installation via PMON**: MCP Server manager is now added at runtime without requiring project restart
+  - Direct integration with `npm-winccoa-core` PmonComponent for immediate manager installation
+  - Manager appears instantly in PMON Console after installation
+  - Automatic version detection from Project Admin Extension with config file fallback
+  - Comprehensive logging throughout installation process for debugging
+  - Intelligent duplicate detection prevents adding manager multiple times
+
+### 🔧 Improved
+- **Robust Version Handling**: Multi-source version detection with priority fallback
+  - Primary: Get version from Project Admin Extension via `getCurrentProject().version`
+  - Fallback: Extract from project `config/config` file `pvss_path` entry
+  - Clear logging when using fallback methods
+- **Manager Configuration**: Optimized settings for reliable operation
+  - Start Mode: Always (automatic start with project)
+  - 6-second initialization wait for HTTP endpoint availability
+  - 3 automatic restart attempts on failure
+  - 30-second graceful shutdown timeout
+- **Error Resilience**: Multiple fallback strategies ensure installation succeeds
+  - PMON runtime installation as primary method
+  - config/progs file modification as fallback for older WinCC OA versions
+  - Detailed error messages with recovery suggestions
+- **Reset & Reinstall Workflow**: Automatically adds manager after MCP Server reinstallation
+  - No manual intervention required
+  - Consistent manager configuration across reinstalls
+
+### 📊 Dependencies
+- Updated: `@winccoa-tools-pack/npm-winccoa-core` to 0.2.3 (moved to runtime dependencies)
+- Integration with Project Admin Extension v2.2.0+ for version information
+
 ## [1.6.2] - 2026-01-26
 
 ### 🔧 Fixed

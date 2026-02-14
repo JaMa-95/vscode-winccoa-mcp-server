@@ -83,7 +83,17 @@ export class SetupWizard {
             });
 
             ExtensionOutputChannel.info('✅ MCP Server reset and reinstalled successfully');
-            ExtensionOutputChannel.info('Note: Manager entry in config/progs was NOT modified');
+            
+            // Automatically add manager (no wizard on reinstall)
+            const mcpServerPath = path.join(projectDir, this.MCP_SUBPATH);
+            ExtensionOutputChannel.info('Adding manager automatically after reinstall...');
+            
+            await ManagerInstallationHelper.addManagerAutomatically(projectDir, mcpServerPath);
+            
+            // Wait for manager to start (give it 6 seconds to initialize)
+            ExtensionOutputChannel.info('Waiting for MCP Server manager to start...');
+            await new Promise(resolve => setTimeout(resolve, 6000));
+            ExtensionOutputChannel.info('✅ Manager should be ready now');
 
             return true;
 

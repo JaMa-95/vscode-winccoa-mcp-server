@@ -3,6 +3,10 @@
 		{
 			"name": "FinalMCPTest",
 			"path": "../../WinCCOA_Proj/FinalMCPTest"
+		},
+		{
+			"name": "NewMCPTest",
+			"path": "../../WinCCOA_Proj/NewMCPTest"
 		}
 	],
 	"settings": {

@@ -1,6 +1,6 @@
 /**
  * MCP Client for WinCC OA MCP Server
- * 
+ *
  * Core client for communicating with WinCC OA MCP Server via HTTP/SSE.
  * Based on working test scripts (test-connection.mjs, test-tool.mjs).
  */
@@ -52,7 +52,7 @@ export class McpClient {
             url: config.url,
             token: config.token,
             authType: config.authType || 'bearer',
-            timeout: config.timeout || 30000
+            timeout: config.timeout || 30000,
         };
     }
 
@@ -68,10 +68,10 @@ export class McpClient {
                 capabilities: {},
                 clientInfo: {
                     name: 'vscode-winccoa-mcp-client',
-                    version: '0.1.0'
-                }
+                    version: '0.1.0',
+                },
             },
-            id: this.getNextId()
+            id: this.getNextId(),
         });
 
         return response.result;
@@ -85,7 +85,7 @@ export class McpClient {
             jsonrpc: '2.0',
             method: 'tools/list',
             params: {},
-            id: this.getNextId()
+            id: this.getNextId(),
         });
 
         return response.result?.tools || [];
@@ -99,7 +99,7 @@ export class McpClient {
             jsonrpc: '2.0',
             method: 'resources/list',
             params: {},
-            id: this.getNextId()
+            id: this.getNextId(),
         });
 
         return response.result?.resources || [];
@@ -114,9 +114,9 @@ export class McpClient {
             method: 'tools/call',
             params: {
                 name: toolName,
-                arguments: args
+                arguments: args,
             },
-            id: this.getNextId()
+            id: this.getNextId(),
         });
 
         return response.result;
@@ -125,14 +125,16 @@ export class McpClient {
     /**
      * Read a resource
      */
-    async readResource(uri: string): Promise<{ contents: Array<{ uri: string; mimeType?: string; text?: string }> }> {
+    async readResource(
+        uri: string,
+    ): Promise<{ contents: Array<{ uri: string; mimeType?: string; text?: string }> }> {
         const response = await this.sendRequest({
             jsonrpc: '2.0',
             method: 'resources/read',
             params: {
-                uri
+                uri,
             },
-            id: this.getNextId()
+            id: this.getNextId(),
         });
 
         return response.result;
@@ -140,7 +142,7 @@ export class McpClient {
 
     /**
      * Send MCP request via HTTP/SSE
-     * 
+     *
      * CRITICAL: MCP Server returns Server-Sent Events (SSE) format:
      * - Lines starting with "event: " define event type
      * - Lines starting with "data: " contain JSON payload
@@ -151,23 +153,27 @@ export class McpClient {
         const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
         ExtensionOutputChannel.debug(`[MCP] >>> Request: ${request.method}`);
-        ExtensionOutputChannel.debug(`[MCP] >>> Params: ${JSON.stringify(request.params, null, 2)}`);
+        ExtensionOutputChannel.debug(
+            `[MCP] >>> Params: ${JSON.stringify(request.params, null, 2)}`,
+        );
 
         try {
             const response = await fetch(this.config.url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/event-stream',
-                    'Authorization': `${this.config.authType === 'bearer' ? 'Bearer' : 'Basic'} ${this.config.token}`
+                    Accept: 'application/json, text/event-stream',
+                    Authorization: `${this.config.authType === 'bearer' ? 'Bearer' : 'Basic'} ${this.config.token}`,
                 },
                 body: JSON.stringify(request),
-                signal: controller.signal
+                signal: controller.signal,
             });
 
             clearTimeout(timeoutId);
 
-            ExtensionOutputChannel.debug(`[MCP] <<< HTTP Status: ${response.status} ${response.statusText}`);
+            ExtensionOutputChannel.debug(
+                `[MCP] <<< HTTP Status: ${response.status} ${response.statusText}`,
+            );
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -176,12 +182,13 @@ export class McpClient {
             // Parse SSE response
             const text = await response.text();
             ExtensionOutputChannel.debug(`[MCP] <<< Raw SSE Response:\n${text}`);
-            
-            const result = this.parseSSEResponse(text);
-            ExtensionOutputChannel.debug(`[MCP] <<< Parsed Result: ${JSON.stringify(result, null, 2).substring(0, 500)}...`);
-            
-            return result;
 
+            const result = this.parseSSEResponse(text);
+            ExtensionOutputChannel.debug(
+                `[MCP] <<< Parsed Result: ${JSON.stringify(result, null, 2).substring(0, 500)}...`,
+            );
+
+            return result;
         } catch (error: any) {
             ExtensionOutputChannel.error(`[MCP] !!! Error: ${error.message}`);
             if (error.name === 'AbortError') {
@@ -193,31 +200,37 @@ export class McpClient {
 
     /**
      * Parse Server-Sent Events (SSE) response
-     * 
+     *
      * Format:
      * ```
      * event: message
      * data: {"jsonrpc":"2.0","id":1,"result":{...}}
-     * 
+     *
      * ```
      */
     private parseSSEResponse(text: string): any {
         const lines = text.split('\n');
         ExtensionOutputChannel.debug(`[MCP] Parsing SSE response (${lines.length} lines)`);
-        
+
         for (const line of lines) {
             if (line.startsWith('data: ')) {
                 const jsonData = line.substring(6); // Remove 'data: ' prefix
-                ExtensionOutputChannel.debug(`[MCP] Found data line: ${jsonData.substring(0, 200)}...`);
+                ExtensionOutputChannel.debug(
+                    `[MCP] Found data line: ${jsonData.substring(0, 200)}...`,
+                );
                 try {
                     const parsed = JSON.parse(jsonData);
-                    
+
                     // Check for JSONRPC error
                     if (parsed.error) {
-                        ExtensionOutputChannel.error(`[MCP] JSONRPC Error: ${JSON.stringify(parsed.error)}`);
-                        throw new Error(`MCP Error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+                        ExtensionOutputChannel.error(
+                            `[MCP] JSONRPC Error: ${JSON.stringify(parsed.error)}`,
+                        );
+                        throw new Error(
+                            `MCP Error: ${parsed.error.message || JSON.stringify(parsed.error)}`,
+                        );
                     }
-                    
+
                     return parsed;
                 } catch (error: any) {
                     // Re-throw if it's our custom error

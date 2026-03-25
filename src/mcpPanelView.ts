@@ -1,6 +1,6 @@
 /**
  * MCP Server Panel View - Copilot-style embedded panel
- * 
+ *
  * WebviewView that appears in panel area when clicking status bar
  */
 
@@ -25,13 +25,13 @@ export class McpPanelView implements vscode.WebviewViewProvider {
     resolveWebviewView(
         webviewView: vscode.WebviewView,
         context: vscode.WebviewViewResolveContext,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): void | Thenable<void> {
         this.view = webviewView;
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [this.extensionUri]
+            localResourceRoots: [this.extensionUri],
         };
 
         webviewView.webview.html = this.getHtmlContent();
@@ -55,7 +55,12 @@ export class McpPanelView implements vscode.WebviewViewProvider {
     /**
      * Update panel with current connection info
      */
-    updateStatus(status: McpServerStatus, projectName?: string, serverUrl?: string, toolCount?: number): void {
+    updateStatus(
+        status: McpServerStatus,
+        projectName?: string,
+        serverUrl?: string,
+        toolCount?: number,
+    ): void {
         this.currentStatus = status;
         if (projectName) this.projectName = projectName;
         if (serverUrl) this.serverUrl = serverUrl;
@@ -71,7 +76,7 @@ export class McpPanelView implements vscode.WebviewViewProvider {
                 status: this.currentStatus,
                 projectName: this.projectName,
                 serverUrl: this.serverUrl,
-                toolCount: this.toolCount
+                toolCount: this.toolCount,
             });
         }
     }
@@ -85,7 +90,10 @@ export class McpPanelView implements vscode.WebviewViewProvider {
                 await vscode.commands.executeCommand('winccoa.mcp.reconnect');
                 break;
             case 'openSettings':
-                await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:RichardJanisch.winccoa-mcp-server');
+                await vscode.commands.executeCommand(
+                    'workbench.action.openSettings',
+                    '@ext:RichardJanisch.winccoa-mcp-server',
+                );
                 break;
             case 'showLogs':
                 await vscode.commands.executeCommand('winccoa.mcp.showOutput');

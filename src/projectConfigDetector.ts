@@ -1,6 +1,6 @@
 /**
  * Project Config Detector
- * 
+ *
  * Auto-detects MCP Server configuration from WinCC OA project.
  * Integrates with Project Admin Extension to get active project.
  */
@@ -13,12 +13,12 @@ import { ExtensionOutputChannel } from './extensionOutput';
 export interface McpConfig {
     url: string;
     token: string;
-    authType: 'bearer' | 'basic';  // McpClient only supports bearer/basic
+    authType: 'bearer' | 'basic'; // McpClient only supports bearer/basic
     projectPath?: string;
     projectName?: string;
 }
 
-export type DetectionError = 
+export type DetectionError =
     | 'project-admin-missing'
     | 'no-project-selected'
     | 'mcp-not-installed'
@@ -58,9 +58,9 @@ export class ProjectConfigDetector {
             const config: McpConfig = {
                 url: `http://localhost:${envConfig.port}/mcp`,
                 token: envConfig.token,
-                authType: envConfig.authType === 'bearer' ? 'bearer' : 'bearer',  // Default to bearer
+                authType: envConfig.authType === 'bearer' ? 'bearer' : 'bearer', // Default to bearer
                 projectPath: project.path,
-                projectName: project.name
+                projectName: project.name,
             };
 
             // Update cache
@@ -69,7 +69,6 @@ export class ProjectConfigDetector {
 
             ExtensionOutputChannel.info(`✅ MCP config detected: ${config.url}`);
             return { config };
-
         } catch (error: any) {
             ExtensionOutputChannel.error(`Config detection failed: ${error.message}`);
             return { config: null, error: 'project-admin-missing' };
@@ -90,7 +89,7 @@ export class ProjectConfigDetector {
      */
     private async getActiveProject(): Promise<{ name: string; path: string } | null> {
         const projectAdmin = vscode.extensions.getExtension('RichardJanisch.winccoa-project-admin');
-        
+
         if (!projectAdmin) {
             ExtensionOutputChannel.warn('Project Admin Extension not found');
             return null;
@@ -116,7 +115,7 @@ export class ProjectConfigDetector {
 
         return {
             name: project.name,
-            path: project.projectDir  // Project Admin API returns projectDir, not path
+            path: project.projectDir, // Project Admin API returns projectDir, not path
         };
     }
 
@@ -151,12 +150,13 @@ export class ProjectConfigDetector {
             const config = {
                 token: tokenMatch[1].trim(),
                 port: portMatch ? portMatch[1].trim() : '3001',
-                authType: authTypeMatch ? authTypeMatch[1].trim() : 'bearer'
+                authType: authTypeMatch ? authTypeMatch[1].trim() : 'bearer',
             };
 
-            ExtensionOutputChannel.debug(`Parsed .env: port=${config.port}, authType=${config.authType}`);
+            ExtensionOutputChannel.debug(
+                `Parsed .env: port=${config.port}, authType=${config.authType}`,
+            );
             return config;
-
         } catch (error: any) {
             ExtensionOutputChannel.error(`Failed to read .env file: ${error.message}`);
             return null;

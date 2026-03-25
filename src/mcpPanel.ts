@@ -1,6 +1,6 @@
 /**
  * MCP Server Panel - Copilot-style panel at bottom
- * 
+ *
  * Shows connection status, project info, and action buttons
  */
 
@@ -33,7 +33,12 @@ export class McpPanel {
     /**
      * Update panel with current connection info
      */
-    updateStatus(status: McpServerStatus, projectName?: string, serverUrl?: string, toolCount?: number): void {
+    updateStatus(
+        status: McpServerStatus,
+        projectName?: string,
+        serverUrl?: string,
+        toolCount?: number,
+    ): void {
         this.currentStatus = status;
         if (projectName) this.projectName = projectName;
         if (serverUrl) this.serverUrl = serverUrl;
@@ -45,7 +50,7 @@ export class McpPanel {
                 status: this.currentStatus,
                 projectName: this.projectName,
                 serverUrl: this.serverUrl,
-                toolCount: this.toolCount
+                toolCount: this.toolCount,
             });
         }
     }
@@ -57,28 +62,28 @@ export class McpPanel {
         this.panel = vscode.window.createWebviewPanel(
             'winccoa.mcp.panel',
             'WinCC OA Copilot',
-            { 
+            {
                 viewColumn: vscode.ViewColumn.Two,
-                preserveFocus: true
+                preserveFocus: true,
             },
             {
                 enableScripts: true,
-                retainContextWhenHidden: true
-            }
+                retainContextWhenHidden: true,
+            },
         );
 
         this.panel.iconPath = {
             light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icon-light.svg'),
-            dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icon-dark.svg')
+            dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icon-dark.svg'),
         };
 
         this.panel.webview.html = this.getHtmlContent();
 
         // Handle messages from webview
         this.panel.webview.onDidReceiveMessage(
-            message => this.handleMessage(message),
+            (message) => this.handleMessage(message),
             undefined,
-            []
+            [],
         );
 
         // Clean up when panel is closed
@@ -87,7 +92,7 @@ export class McpPanel {
                 this.panel = undefined;
             },
             null,
-            []
+            [],
         );
 
         // Send initial state

@@ -13,7 +13,7 @@
     "url": "https://github.com/rjanisch/vscode-winccoa-mcp-server.git"
   },
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.110.0"
   },
   "categories": [
     "Other"
@@ -35,10 +35,33 @@
   ],
   "main": "dist/src/extension.js",
   "scripts": {
+    "clean:out": "node -e \"require('fs').rmSync('out',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+    "clean:coverage": "node -e \"require('fs').rmSync('coverage',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+    "clean:coverage:unitTests": "node -e \"require('fs').rmSync('coverage/unitTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+    "clean:coverage:integrationTests": "node -e \"require('fs').rmSync('coverage/integrationTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "copy-fixtures": "node scripts/copy-fixtures.mjs",
+    "ci:integration": "npm ci && npm run compile && npm run test:integration",
+    "dev": "npm run watch",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
+    "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
+    "package": "vsce package",
+    "pretest": "npm run compile && npm run lint",
+    "start": "code --extensionDevelopmentPath=.",
+    "start:insiders": "code-insiders --extensionDevelopmentPath=.",
+    "style-check": "npm run format:check && npm run lint",
     "test": "node dist/test/mcpClient.test.js",
-    "package": "vsce package"
+    "test:unit": "vscode-test --label unitTests",
+    "test:integration": "vscode-test --label integrationTests",
+    "test:unit:coverage": "npm run compile && npm run clean:coverage:unitTests && vscode-test --label unitTests --coverage --coverage-output coverage/unitTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
+    "test:integration:coverage": "npm run compile && npm run clean:coverage:integrationTests && vscode-test --label integrationTests --coverage --coverage-output coverage/integrationTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
+    "test:coverage": "npm run test:unit:coverage && npm run test:integration:coverage",
+    "vscode:prepublish": "npm run compile",
+    "watch": "tsc -watch -p ./"
   },
   "contributes": {
     "commands": [
@@ -671,25 +694,51 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^24.10.8",
+    "@types/node": "^25.5.0",
     "@types/sinon": "^21.0.0",
-    "@types/vscode": "^1.80.0",
-    "@typescript-eslint/eslint-plugin": "^6.10.0",
-    "@typescript-eslint/parser": "^6.10.0",
-    "@vscode/test-electron": "^2.3.9",
+    "@types/vscode": "^1.110.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.56.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
     "chai": "^6.2.2",
-    "eslint": "^8.50.0",
-    "glob": "^13.0.0",
-    "markdownlint-cli": "^0.36.0",
+    "eslint": "^10.0.3",
+    "glob": "^13.0.3",
+    "globals": "^17.4.0",
+    "markdownlint-cli": "^0.48.0",
     "mocha": "^11.7.5",
-    "prettier": "^2.8.8",
+    "prettier": "^3.8.1",
     "sinon": "^21.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.2.0",
+    "typescript-eslint": "^8.32.1",
     "vscode-test": "^1.6.1"
+  },
+  "overrides": {
+    "diff": "8.0.3",
+    "minimatch": "10.2.2",
+    "mocha": {
+      "minimatch": "10.2.2"
+    },
+    "@vscode/test-cli": {
+      "minimatch": "10.2.2"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "10.2.2"
+    },
+    "markdownlint-cli": {
+      "minimatch": "10.2.2"
+    },
+    "@vscode/vsce": {
+      "minimatch": "3.1.2"
+    }
+  },
+  "config": {
+    "winccoaImage": "mpokornyetm/winccoa-tools-pack-npm-winccoa-core:npm-winccoa-core"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

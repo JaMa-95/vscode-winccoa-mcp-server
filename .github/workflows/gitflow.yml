@@ -1,28 +1,15 @@
-name: Gitflow
+name: GitFlow (Upmerge main → develop via PR)
 
 on:
   push:
-  pull_request_review:
-  check_run:
-    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
-  build:
-    name: Gitflow
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run gitflow action
-        uses: Logerfo/gitflow-action@0.0.5
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          dev: develop
-          master: main
-          release: release
-          release-regex: '^release/(.*)'
-          label: gitflow
-          auto-merge: true
-          require-merge: false
+  upmerge:
+    uses: winccoa-tools-pack/.github/.github/workflows/reusable-gitflow-upmerge.yml@main
+    secrets: inherit

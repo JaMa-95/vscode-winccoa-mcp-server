@@ -15,7 +15,7 @@ export class ManagerInstallationHelper {
      * @returns 'auto' | 'manual' | 'cancel'
      */
     static async askUserForInstallation(mcpServerPath: string): Promise<'auto' | 'manual' | 'cancel'> {
-        const scriptPath = path.join(mcpServerPath, 'index_http.js');
+        const scriptPath = path.join(mcpServerPath, 'index.js');
         
         const message = [
             'MCP Server installation complete!',
@@ -54,7 +54,7 @@ export class ManagerInstallationHelper {
     ): Promise<boolean> {
         try {
             // Use relative path from project root
-            const scriptPath = 'mcpServer\\index_http.js';
+            const scriptPath = 'mcpServer\\index.js';
             
             // Check if manager already exists
             const exists = await ManagerConfigWriter.managerExists(
@@ -118,7 +118,7 @@ export class ManagerInstallationHelper {
         projectPath: string,
         mcpServerPath: string
     ): Promise<void> {
-        const scriptPath = path.join(mcpServerPath, 'index_http.js');
+        const scriptPath = path.join(mcpServerPath, 'index.js');
         const nextNum = await ManagerConfigWriter.getNextFreeManagerNumber(projectPath);
         
         const instructions = [

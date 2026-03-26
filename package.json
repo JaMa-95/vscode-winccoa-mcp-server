@@ -262,7 +262,9 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": ["Struct"],
+                  "enum": [
+                    "Struct"
+                  ],
                   "description": "Type must be 'Struct'"
                 },
                 "children": {
@@ -277,7 +279,24 @@
                       },
                       "type": {
                         "type": "string",
-                        "enum": ["Bool", "Int", "UInt", "Float", "String", "Char", "Time", "Bit32", "Bit64", "DynBool", "DynInt", "DynUInt", "DynFloat", "DynString", "DynChar", "DynTime"],
+                        "enum": [
+                          "Bool",
+                          "Int",
+                          "UInt",
+                          "Float",
+                          "String",
+                          "Char",
+                          "Time",
+                          "Bit32",
+                          "Bit64",
+                          "DynBool",
+                          "DynInt",
+                          "DynUInt",
+                          "DynFloat",
+                          "DynString",
+                          "DynChar",
+                          "DynTime"
+                        ],
                         "description": "Element data type"
                       },
                       "children": {
@@ -288,11 +307,18 @@
                         }
                       }
                     },
-                    "required": ["name", "type"]
+                    "required": [
+                      "name",
+                      "type"
+                    ]
                   }
                 }
               },
-              "required": ["name", "type", "children"]
+              "required": [
+                "name",
+                "type",
+                "children"
+              ]
             }
           },
           "required": [
@@ -319,7 +345,10 @@
             },
             "direction": {
               "type": "string",
-              "enum": ["ASC", "DESC"],
+              "enum": [
+                "ASC",
+                "DESC"
+              ],
               "description": "Alarm direction: ASC (ascending, higher values trigger higher severity) or DESC (descending, lower values trigger higher severity). Example: ASC for high temperature alarm, DESC for low level alarm. Default classes: ASC=['information.','warning.','alert.'], DESC=['alert.','warning.','information.'].",
               "default": "ASC"
             },
@@ -644,28 +673,10 @@
           "default": true,
           "description": "Show connection status notifications (reconnect success/failure)"
         },
-        "winccoa.mcp.installMethod": {
+        "winccoa.mcp.githubRepo": {
           "type": "string",
-          "enum": [
-            "npm",
-            "git"
-          ],
-          "default": "npm",
-          "description": "Installation method for MCP Server",
-          "enumDescriptions": [
-            "Install from official NPM package (@etm-professional-control/winccoa-mcp-server)",
-            "Install from Git repository (allows using custom forks with additional features)"
-          ]
-        },
-        "winccoa.mcp.gitRepositoryUrl": {
-          "type": "string",
-          "default": "https://github.com/RichardJanisch/winccoa-ae-js-mcpserver.git",
-          "description": "Git repository URL for MCP Server (only used when installMethod is 'git')"
-        },
-        "winccoa.mcp.gitBranch": {
-          "type": "string",
-          "default": "main",
-          "description": "Git branch to use (only used when installMethod is 'git')"
+          "default": "winccoa-tools-pack/winccoa-mcp-server",
+          "description": "GitHub repository (owner/repo) to download the MCP Server release from"
         }
       }
     }
@@ -693,7 +704,6 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "simple-git": "^3.30.0"
+    "@modelcontextprotocol/sdk": "^1.0.0"
   }
 }

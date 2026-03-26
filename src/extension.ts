@@ -13,6 +13,7 @@ import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
 import { ConnectionMonitor } from './connectionMonitor';
+import { McpConnectionInfo, McpServerExtensionApi } from './extensionApi';
 
 // Global persistent client
 let mcpClient: McpClient | null = null;
@@ -21,6 +22,9 @@ let currentConfig: McpConfig | null = null;
 // Connection Monitor
 let connectionMonitor: ConnectionMonitor | null = null;
 
+// Extension API event emitter
+const connectionChangeEmitter = new vscode.EventEmitter<McpConnectionInfo | null>();
+
 let statusBar: StatusBarManager;
 let languageModelTools: LanguageModelTools;
 let configDetector: ProjectConfigDetector;
@@ -28,7 +32,7 @@ let configDetector: ProjectConfigDetector;
 /**
  * Extension activation
  */
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<McpServerExtensionApi> {
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activating...');
 
     // Initialize Config Detector
@@ -86,7 +90,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand('winccoa.mcp.resetAndReinstall', resetAndReinstall)
     );
 
+    // Watch .env file for changes (port, token, host edits)
+    const envWatcher = vscode.workspace.createFileSystemWatcher('**/javascript/mcpServer/.env');
+    envWatcher.onDidChange(async () => {
+        ExtensionOutputChannel.info('.env file changed — re-detecting MCP config...');
+        configDetector.invalidateCache();
+        const { config } = await configDetector.detectConfig();
+        if (config) {
+            await createClient(config);
+            statusBar.setStatus('connected');
+            ExtensionOutputChannel.info(`✅ Reconnected with updated .env: ${config.url}`);
+        }
+    });
+    context.subscriptions.push(envWatcher, connectionChangeEmitter);
+
+    // Build and return the public extension API
+    const api: McpServerExtensionApi = {
+        getConnectionInfo: () => buildConnectionInfo(),
+        getConnectionState: () => {
+            if (mcpClient && currentConfig) { return 'connected'; }
+            return 'disconnected';
+        },
+        onDidChangeConnection: connectionChangeEmitter.event,
+    };
+
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
+    return api;
 }
 
 /**
@@ -105,28 +134,45 @@ export async function deactivate(): Promise<void> {
 }
 
 /**
+ * Build connection info from current config for the public API
+ */
+function buildConnectionInfo(): McpConnectionInfo | null {
+    if (!currentConfig) { return null; }
+    return {
+        url: currentConfig.url,
+        token: currentConfig.token,
+        authType: currentConfig.authType,
+        projectName: currentConfig.projectName,
+        projectPath: currentConfig.projectPath,
+    };
+}
+
+/**
  * Create and initialize MCP Client (persistent)
  */
 async function createClient(config: McpConfig): Promise<McpClient> {
     ExtensionOutputChannel.info(`Creating MCP client for: ${config.url}`);
-    
+
     // Dispose old client first
     await disposeClient();
-    
+
     // Create new client
     const client = new McpClient(config);
     await client.initialize();
-    
+
     // Store globally
     mcpClient = client;
     currentConfig = config;
-    
+
     // Update all components
     languageModelTools.updateClient(client);
-    
+
     // Start connection monitoring
     startConnectionMonitor();
-    
+
+    // Notify consumers of new connection
+    connectionChangeEmitter.fire(buildConnectionInfo());
+
     ExtensionOutputChannel.info('✅ MCP Client created and initialized');
     return client;
 }
@@ -151,10 +197,13 @@ async function disposeClient(): Promise<void> {
         // Client might have dispose/close method in future
         mcpClient = null;
         currentConfig = null;
-        
+
         // Update components
         languageModelTools.updateClient(null);
-        
+
+        // Notify consumers of disconnection
+        connectionChangeEmitter.fire(null);
+
         ExtensionOutputChannel.info('MCP client disposed');
     } catch (error: any) {
         ExtensionOutputChannel.error(`Error disposing client: ${error.message}`);
@@ -215,8 +264,7 @@ function startConnectionMonitor(): void {
 async function handleConnectionLost(): Promise<void> {
     ExtensionOutputChannel.warn('⚠️ Connection lost to MCP Server');
     statusBar.setStatus('error', 'Connection lost');
-    
-    // Don't show notification here - wait for auto-reconnect result
+    connectionChangeEmitter.fire(null);
 }
 
 /**
@@ -225,7 +273,8 @@ async function handleConnectionLost(): Promise<void> {
 function handleReconnectSuccess(): void {
     ExtensionOutputChannel.info('✅ Auto-reconnect successful');
     statusBar.setStatus('connected');
-    
+    connectionChangeEmitter.fire(buildConnectionInfo());
+
     const config = vscode.workspace.getConfiguration('winccoa.mcp');
     const showNotifications = config.get<boolean>('showNotifications', true);
     

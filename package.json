@@ -40,6 +40,7 @@
     "clean:coverage:unitTests": "node -e \"require('fs').rmSync('coverage/unitTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
     "clean:coverage:integrationTests": "node -e \"require('fs').rmSync('coverage/integrationTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
     "compile": "tsc -p ./",
+    "compile:tsc": "tsc -p ./ && npm run copy-fixtures",
     "copy-fixtures": "node scripts/copy-fixtures.mjs",
     "ci:integration": "npm ci && npm run compile && npm run test:integration",
     "dev": "npm run watch",

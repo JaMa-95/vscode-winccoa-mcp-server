@@ -30,9 +30,8 @@ export class SetupWizard {
     /**
      * Reset MCP Server (delete folder) and reinstall
      */
-    static async resetAndReinstall(projectDir: string, projectName: string, oaInstallPath: string): Promise<boolean> {
+    static async resetAndReinstall(projectDir: string, projectName: string): Promise<boolean> {
         ExtensionOutputChannel.info(`Resetting MCP Server for project: ${projectName}`);
-        ExtensionOutputChannel.info(`Using WinCC OA installation: ${oaInstallPath}`);
 
         const mcpPath = path.join(projectDir, this.MCP_SUBPATH);
 
@@ -41,7 +40,7 @@ export class SetupWizard {
             const isInstalled = await this.isMcpServerInstalled(projectDir);
             if (!isInstalled) {
                 ExtensionOutputChannel.info('MCP Server not installed - running setup instead');
-                return await this.runSetup(projectDir, projectName, oaInstallPath);
+                return await this.runSetup(projectDir, projectName);
             }
 
             // Step 2: Delete MCP Server folder and reinstall
@@ -51,7 +50,7 @@ export class SetupWizard {
                 cancellable: false
             }, async (progress) => {
                 progress.report({ increment: 0, message: 'Deleting MCP Server folder...' });
-                
+
                 try {
                     await fs.rm(mcpPath, { recursive: true, force: true });
                     ExtensionOutputChannel.info(`Deleted folder: ${mcpPath}`);
@@ -60,7 +59,7 @@ export class SetupWizard {
                 }
 
                 progress.report({ increment: 20, message: 'Downloading from GitHub releases...' });
-                await this.installFromGithubRelease(projectDir, oaInstallPath);
+                await this.installFromGithubRelease(projectDir);
 
                 progress.report({ increment: 85, message: 'Generating security token...' });
                 const token = this.generateToken();
@@ -86,9 +85,8 @@ export class SetupWizard {
     /**
      * Run auto-setup wizard
      */
-    static async runSetup(projectDir: string, projectName: string, oaInstallPath: string): Promise<boolean> {
+    static async runSetup(projectDir: string, projectName: string): Promise<boolean> {
         ExtensionOutputChannel.info(`Starting MCP Server setup for project: ${projectName}`);
-        ExtensionOutputChannel.info(`Using WinCC OA installation: ${oaInstallPath}`);
 
         // Ask user for confirmation
         const answer = await vscode.window.showInformationMessage(
@@ -111,7 +109,7 @@ export class SetupWizard {
             }, async (progress) => {
                 // Step 1: Download and install from latest GitHub release
                 progress.report({ increment: 0, message: 'Downloading from GitHub releases...' });
-                await this.installFromGithubRelease(projectDir, oaInstallPath);
+                await this.installFromGithubRelease(projectDir);
 
                 // Step 2: Generate Token
                 progress.report({ increment: 80, message: 'Generating security token...' });
@@ -147,7 +145,7 @@ export class SetupWizard {
     /**
      * Install MCP Server from latest GitHub release asset (.tgz)
      */
-    private static async installFromGithubRelease(projectDir: string, oaInstallPath: string): Promise<void> {
+    private static async installFromGithubRelease(projectDir: string): Promise<void> {
         const config = vscode.workspace.getConfiguration('winccoa.mcp');
         const githubRepo = config.get<string>('githubRepo', 'winccoa-tools-pack/winccoa-mcp-server');
 
@@ -176,22 +174,40 @@ export class SetupWizard {
             await this.downloadFile(tarGzAsset.browser_download_url, tempFile);
             ExtensionOutputChannel.info(`Downloaded ${tarGzAsset.name}`);
 
-            // Step 3: Create target directory and extract
-            // The tar.gz contains dist/ contents at the root (built with: tar -czf -C dist .)
-            await fs.mkdir(mcpServerDir, { recursive: true });
+            // Step 3: Extract to a temporary directory, then rename to mcpServer
+            const tempExtractDir = path.join(projectDir, 'javascript', `.mcp-extract-${Date.now()}`);
+            await fs.mkdir(tempExtractDir, { recursive: true });
             const extractResult = await this.executeCommand(
                 'tar',
-                ['-xzf', tempFile, '-C', mcpServerDir],
+                ['-xzf', tempFile, '-C', tempExtractDir],
                 projectDir
             );
             if (extractResult.exitCode !== 0) {
+                await fs.rm(tempExtractDir, { recursive: true, force: true });
                 throw new Error(`Extraction failed: ${extractResult.stderr}`);
             }
-            ExtensionOutputChannel.info(`Extracted to: ${mcpServerDir}`);
 
-            // Step 4: Install winccoa-manager from WinCC OA installation
-            // (winccoa-manager is an external native add-on, not bundled by esbuild)
-            await this.installWinCCOAManager(projectDir, oaInstallPath);
+            // Detect whether the archive had a subdirectory prefix
+            const entries = await fs.readdir(tempExtractDir, { withFileTypes: true });
+            const subdirs = entries.filter(e => e.isDirectory());
+            const files = entries.filter(e => !e.isDirectory());
+            const sourceDir = (files.length === 0 && subdirs.length === 1)
+                ? path.join(tempExtractDir, subdirs[0].name)
+                : tempExtractDir;
+
+            if (files.length === 0 && subdirs.length === 1) {
+                ExtensionOutputChannel.info(`Artifact directory: ${subdirs[0].name}`);
+            }
+
+            // Remove existing mcpServer (if any) and rename extracted dir to mcpServer
+            await fs.rm(mcpServerDir, { recursive: true, force: true });
+            await fs.rename(sourceDir, mcpServerDir);
+
+            // Clean up temp dir if it still exists (when sourceDir was a subdirectory)
+            if (sourceDir !== tempExtractDir) {
+                await fs.rm(tempExtractDir, { recursive: true, force: true });
+            }
+            ExtensionOutputChannel.info(`Installed to: ${mcpServerDir}`);
 
             ExtensionOutputChannel.info(`✅ MCP Server ${tagName} installed from GitHub release`);
 
@@ -268,45 +284,6 @@ export class SetupWizard {
         });
     }
 
-
-
-    /**
-     * Install winccoa-manager package from WinCC OA installation
-     */
-    private static async installWinCCOAManager(projectDir: string, oaInstallPath: string): Promise<void> {
-        const mcpServerDir = path.join(projectDir, this.MCP_SUBPATH);
-
-        if (!oaInstallPath) {
-            throw new Error('WinCC OA installation path not provided by Project Admin Extension');
-        }
-
-        // Build path to winccoa-manager package
-        const winCCOAManagerPath = path.join(oaInstallPath, 'javascript', 'winccoa-manager');
-        
-        ExtensionOutputChannel.info(`Looking for winccoa-manager at: ${winCCOAManagerPath}`);
-        
-        // Verify package exists
-        try {
-            await fs.access(winCCOAManagerPath);
-            ExtensionOutputChannel.info(`✅ Found winccoa-manager package`);
-        } catch {
-            throw new Error(`WinCC OA Manager package not found at: ${winCCOAManagerPath}`);
-        }
-
-        // Install winccoa-manager via npm
-        ExtensionOutputChannel.info(`Installing winccoa-manager from: ${winCCOAManagerPath}`);
-        const installResult = await this.executeCommand(
-            'npm',
-            ['install', `"file:${winCCOAManagerPath}"`],
-            mcpServerDir
-        );
-
-        if (installResult.exitCode !== 0) {
-            throw new Error(`Failed to install winccoa-manager: ${installResult.stderr}`);
-        }
-
-        ExtensionOutputChannel.info('✅ winccoa-manager installed successfully');
-    }
 
     /**
      * Generate secure random token

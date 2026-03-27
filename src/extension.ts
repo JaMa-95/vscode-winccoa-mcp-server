@@ -842,7 +842,7 @@ async function runSetup(): Promise<void> {
             }
             
             // User wants to reinstall - call resetAndReinstall
-            const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id, project.oaInstallPath);
+            const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id);
             
             if (success) {
                 configDetector.invalidateCache();
@@ -852,7 +852,7 @@ async function runSetup(): Promise<void> {
         }
 
         // Run setup wizard (fresh install)
-        const success = await SetupWizard.runSetup(projectPath, project.name || project.id, project.oaInstallPath);
+        const success = await SetupWizard.runSetup(projectPath, project.name || project.id);
         
         if (success) {
             // Invalidate cache and reconnect
@@ -934,7 +934,7 @@ async function resetAndReinstall(): Promise<void> {
         }
 
         // Call SetupWizard.resetAndReinstall()
-        const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id, project.oaInstallPath);
+        const success = await SetupWizard.resetAndReinstall(projectPath, project.name || project.id);
 
         if (success) {
             vscode.window.showInformationMessage('MCP Server reset and reinstalled successfully!');

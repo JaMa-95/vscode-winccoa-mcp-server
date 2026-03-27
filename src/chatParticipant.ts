@@ -1,6 +1,6 @@
 /**
  * Chat Participant for @winccoa commands
- * 
+ *
  * Enables manual commands via @winccoa /managers etc.
  */
 
@@ -17,9 +17,12 @@ export class WinCCOAChatParticipant {
      * Register Chat Participant
      */
     register(context: vscode.ExtensionContext): void {
-        const participant = vscode.chat.createChatParticipant('winccoa', async (request, chatContext, stream, token) => {
-            return this.handleRequest(request, chatContext, stream, token);
-        });
+        const participant = vscode.chat.createChatParticipant(
+            'winccoa',
+            async (request, chatContext, stream, token) => {
+                return this.handleRequest(request, chatContext, stream, token);
+            },
+        );
 
         participant.iconPath = vscode.Uri.file('images/icon.png');
 
@@ -34,16 +37,17 @@ export class WinCCOAChatParticipant {
         request: vscode.ChatRequest,
         context: vscode.ChatContext,
         stream: vscode.ChatResponseStream,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.ChatResult> {
-        
         try {
             // Initialize client if needed
             if (!this.client) {
                 const config = await this.getMcpConfig();
                 if (!config) {
                     stream.markdown('❌ **No MCP Server configuration found**\n\n');
-                    stream.markdown('Please select a WinCC OA project with MCP Server installed.\n');
+                    stream.markdown(
+                        'Please select a WinCC OA project with MCP Server installed.\n',
+                    );
                     return { errorDetails: { message: 'No MCP config' } };
                 }
                 this.client = new McpClient(config);
@@ -72,7 +76,6 @@ export class WinCCOAChatParticipant {
                 default:
                     return await this.handleHelp(stream);
             }
-
         } catch (error: any) {
             stream.markdown(`❌ **Error:** ${error.message}\n\n`);
             stream.markdown('Make sure the MCP Server is running on `http://localhost:3001/mcp`\n');
@@ -84,7 +87,10 @@ export class WinCCOAChatParticipant {
     /**
      * Handler: /managers - List all WinCC OA managers
      */
-    private async handleManagers(stream: vscode.ChatResponseStream, prompt: string): Promise<vscode.ChatResult> {
+    private async handleManagers(
+        stream: vscode.ChatResponseStream,
+        prompt: string,
+    ): Promise<vscode.ChatResult> {
         stream.progress('Fetching managers from MCP Server...');
 
         const result = await this.client!.callTool('list-managers', {});
@@ -104,13 +110,16 @@ export class WinCCOAChatParticipant {
     /**
      * Handler: /datapoints - Search for datapoints
      */
-    private async handleDatapoints(stream: vscode.ChatResponseStream, prompt: string): Promise<vscode.ChatResult> {
+    private async handleDatapoints(
+        stream: vscode.ChatResponseStream,
+        prompt: string,
+    ): Promise<vscode.ChatResult> {
         const pattern = prompt || '*';
         stream.progress(`Searching datapoints with pattern: ${pattern}...`);
 
         const result = await this.client!.callTool('get-datapoints', {
             pattern,
-            includeDetails: false
+            includeDetails: false,
         });
 
         const response = JSON.parse(result.content![0].text!);
@@ -130,22 +139,32 @@ export class WinCCOAChatParticipant {
             stream.markdown(`- **Elements:** ${datapoint.elements?.join(', ') || 'N/A'}\n`);
         }
 
-        return { metadata: { command: 'datapoints', count: Array.isArray(datapoint) ? datapoint.length : 1 } };
+        return {
+            metadata: {
+                command: 'datapoints',
+                count: Array.isArray(datapoint) ? datapoint.length : 1,
+            },
+        };
     }
 
     /**
      * Handler: /get - Get datapoint value
      */
-    private async handleGetValue(stream: vscode.ChatResponseStream, prompt: string): Promise<vscode.ChatResult> {
+    private async handleGetValue(
+        stream: vscode.ChatResponseStream,
+        prompt: string,
+    ): Promise<vscode.ChatResult> {
         if (!prompt) {
-            stream.markdown('❌ Please provide a datapoint element name (e.g., `System1:Pump.state`)\n');
+            stream.markdown(
+                '❌ Please provide a datapoint element name (e.g., `System1:Pump.state`)\n',
+            );
             return { errorDetails: { message: 'Missing datapoint element' } };
         }
 
         stream.progress(`Reading value from ${prompt}...`);
 
         const result = await this.client!.callTool('get-value', {
-            dpe: prompt
+            dpe: prompt,
         });
 
         const response = JSON.parse(result.content![0].text!);
@@ -173,13 +192,16 @@ export class WinCCOAChatParticipant {
     /**
      * Handler: /dptypes - List datapoint types
      */
-    private async handleDpTypes(stream: vscode.ChatResponseStream, prompt: string): Promise<vscode.ChatResult> {
+    private async handleDpTypes(
+        stream: vscode.ChatResponseStream,
+        prompt: string,
+    ): Promise<vscode.ChatResult> {
         const pattern = prompt || '*';
         stream.progress(`Fetching datapoint types with pattern: ${pattern}...`);
 
         const result = await this.client!.callTool('get-dpTypes', {
             pattern,
-            includeDetails: false
+            includeDetails: false,
         });
 
         const response = JSON.parse(result.content![0].text!);
@@ -223,7 +245,9 @@ export class WinCCOAChatParticipant {
         stream.markdown(`I can help you interact with your WinCC OA project via MCP Server.\n\n`);
         stream.markdown(`## Available Commands:\n\n`);
         stream.markdown(`- \`@winccoa /managers\` - List all WinCC OA managers\n`);
-        stream.markdown(`- \`@winccoa /datapoints <pattern>\` - Search datapoints (e.g., \`*Pump*\`)\n`);
+        stream.markdown(
+            `- \`@winccoa /datapoints <pattern>\` - Search datapoints (e.g., \`*Pump*\`)\n`,
+        );
         stream.markdown(`- \`@winccoa /get <dpe>\` - Get current value of a datapoint element\n`);
         stream.markdown(`- \`@winccoa /dptypes <pattern>\` - List datapoint types\n`);
         stream.markdown(`- \`@winccoa /tools\` - List all available MCP tools\n`);

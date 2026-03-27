@@ -1,6 +1,6 @@
 /**
  * Language Model Tools for GitHub Copilot
- * 
+ *
  * Simple tool implementations that delegate to MCP Server.
  */
 
@@ -38,94 +38,132 @@ export class LanguageModelTools {
      */
     register(context: vscode.ExtensionContext): void {
         ExtensionOutputChannel.info('Registering Language Model Tools...');
-        
+
         // === READ-ONLY TOOLS ===
-        
+
         // Tool 1: List Managers
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_list_managers', new ListManagersTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_list_managers',
+                new ListManagersTool(() => this.getClient()),
+            ),
         );
 
         // Tool 2: Get Datapoints
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_get_datapoints', new GetDatapointsTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_get_datapoints',
+                new GetDatapointsTool(() => this.getClient()),
+            ),
         );
 
         // Tool 3: Get Value
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_get_value', new GetValueTool(() => this.getClient()))
+            vscode.lm.registerTool('winccoa_get_value', new GetValueTool(() => this.getClient())),
         );
 
         // Tool 4: Get DpTypes
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_get_dptypes', new GetDpTypesTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_get_dptypes',
+                new GetDpTypesTool(() => this.getClient()),
+            ),
         );
 
         // Tool 5: Get Manager Status
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_get_manager_status', new GetManagerStatusTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_get_manager_status',
+                new GetManagerStatusTool(() => this.getClient()),
+            ),
         );
 
         // === WRITE TOOLS ===
 
         // Tool 6: Create Datapoint
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_create_datapoint', new CreateDatapointTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_create_datapoint',
+                new CreateDatapointTool(() => this.getClient()),
+            ),
         );
 
         // Tool 7: Set Datapoint Value
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_dp_set', new DpSetTool(() => this.getClient()))
+            vscode.lm.registerTool('winccoa_dp_set', new DpSetTool(() => this.getClient())),
         );
 
         // Tool 8: Create Datapoint Type
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_create_dp_type', new CreateDpTypeTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_create_dp_type',
+                new CreateDpTypeTool(() => this.getClient()),
+            ),
         );
 
         // Tool 9: Set Alarm Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_alarm_set', new AlarmSetTool(() => this.getClient()))
+            vscode.lm.registerTool('winccoa_alarm_set', new AlarmSetTool(() => this.getClient())),
         );
 
         // Tool 10: Delete Alarm Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_alarm_delete', new AlarmDeleteTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_alarm_delete',
+                new AlarmDeleteTool(() => this.getClient()),
+            ),
         );
 
         // Tool 11: Set Archive Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_archive_set', new ArchiveSetTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_archive_set',
+                new ArchiveSetTool(() => this.getClient()),
+            ),
         );
 
         // Tool 12: Set Common Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_common_set', new CommonSetTool(() => this.getClient()))
+            vscode.lm.registerTool('winccoa_common_set', new CommonSetTool(() => this.getClient())),
         );
 
         // Tool 13: Set PV Range
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_pv_range_set', new PvRangeSetTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_pv_range_set',
+                new PvRangeSetTool(() => this.getClient()),
+            ),
         );
 
         // === MODBUS TOOLS ===
 
         // Tool 14: Get Modbus Address Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_modbus_address_get', new ModbusAddressGetTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_modbus_address_get',
+                new ModbusAddressGetTool(() => this.getClient()),
+            ),
         );
 
         // Tool 15: Set Modbus Address Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_modbus_address_set', new ModbusAddressSetTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_modbus_address_set',
+                new ModbusAddressSetTool(() => this.getClient()),
+            ),
         );
 
         // Tool 16: Remove Modbus Address Configuration
         context.subscriptions.push(
-            vscode.lm.registerTool('winccoa_modbus_address_remove', new ModbusAddressRemoveTool(() => this.getClient()))
+            vscode.lm.registerTool(
+                'winccoa_modbus_address_remove',
+                new ModbusAddressRemoveTool(() => this.getClient()),
+            ),
         );
 
-        ExtensionOutputChannel.info('✅ All Language Model Tools registered (16 tools: 6 read-only + 10 write)');
+        ExtensionOutputChannel.info(
+            '✅ All Language Model Tools registered (16 tools: 6 read-only + 10 write)',
+        );
     }
 }
 
@@ -137,21 +175,21 @@ class ListManagersTool implements vscode.LanguageModelTool<void> {
 
     async prepareInvocation(
         options: vscode.LanguageModelToolInvocationPrepareOptions<void>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
-            invocationMessage: 'Listing WinCC OA managers...'
+            invocationMessage: 'Listing WinCC OA managers...',
         };
     }
 
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<void>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('list-managers', {});
-            
+
             if (!result.content || result.content.length === 0) {
                 throw new Error('No response from MCP server');
             }
@@ -160,7 +198,7 @@ class ListManagersTool implements vscode.LanguageModelTool<void> {
             const managers = response.data?.managers || [];
 
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(managers, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(managers, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -177,16 +215,16 @@ class GetDatapointsTool implements vscode.LanguageModelTool<{ pattern: string }>
 
     async prepareInvocation(
         options: vscode.LanguageModelToolInvocationPrepareOptions<{ pattern: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
-            invocationMessage: `Searching datapoints: ${options.input.pattern}...`
+            invocationMessage: `Searching datapoints: ${options.input.pattern}...`,
         };
     }
 
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<{ pattern: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             // Auto-add wildcards if missing (unless pattern has : or already contains *)
@@ -197,7 +235,7 @@ class GetDatapointsTool implements vscode.LanguageModelTool<{ pattern: string }>
 
             const client = this.getClient();
             const result = await client.callTool('get-datapoints', {
-                dpNamePattern: pattern
+                dpNamePattern: pattern,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -205,10 +243,10 @@ class GetDatapointsTool implements vscode.LanguageModelTool<{ pattern: string }>
             }
 
             // MCP Server returns multiple datapoints as separate content items
-            const  datapoints = result.content.map(item => JSON.parse(item.text!));
+            const datapoints = result.content.map((item) => JSON.parse(item.text!));
 
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(datapoints, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(datapoints, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -225,21 +263,21 @@ class GetValueTool implements vscode.LanguageModelTool<{ dpe: string }> {
 
     async prepareInvocation(
         options: vscode.LanguageModelToolInvocationPrepareOptions<{ dpe: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
-            invocationMessage: `Reading value: ${options.input.dpe}...`
+            invocationMessage: `Reading value: ${options.input.dpe}...`,
         };
     }
 
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<{ dpe: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('get-value', {
-                dpe: options.input.dpe
+                dpe: options.input.dpe,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -250,7 +288,7 @@ class GetValueTool implements vscode.LanguageModelTool<{ dpe: string }> {
             const value = response.data || response;
 
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(value, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(value, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -267,21 +305,21 @@ class GetDpTypesTool implements vscode.LanguageModelTool<{ pattern?: string }> {
 
     async prepareInvocation(
         options: vscode.LanguageModelToolInvocationPrepareOptions<{ pattern?: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
-            invocationMessage: 'Listing datapoint types...'
+            invocationMessage: 'Listing datapoint types...',
         };
     }
 
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<{ pattern?: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('get-dpTypes', {
-                pattern: options.input.pattern || '*'
+                pattern: options.input.pattern || '*',
             });
 
             if (!result.content || result.content.length === 0) {
@@ -303,10 +341,12 @@ class GetDpTypesTool implements vscode.LanguageModelTool<{ pattern?: string }> {
             }
 
             // Collect all type names from content items
-            const types = result.content.map(item => item.text!).filter(t => t && !t.startsWith('{'));
+            const types = result.content
+                .map((item) => item.text!)
+                .filter((t) => t && !t.startsWith('{'));
 
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(types, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(types, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -323,16 +363,16 @@ class GetManagerStatusTool implements vscode.LanguageModelTool<{ managerName: st
 
     async prepareInvocation(
         options: vscode.LanguageModelToolInvocationPrepareOptions<{ managerName: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
-            invocationMessage: `Getting status for manager: ${options.input.managerName}...`
+            invocationMessage: `Getting status for manager: ${options.input.managerName}...`,
         };
     }
 
     async invoke(
         options: vscode.LanguageModelToolInvocationOptions<{ managerName: string }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -351,7 +391,7 @@ class GetManagerStatusTool implements vscode.LanguageModelTool<{ managerName: st
             }
 
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(manager, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(manager, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -382,7 +422,7 @@ class CreateDatapointTool implements vscode.LanguageModelTool<{
             systemId?: number;
             dpId?: number;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Creating datapoint '${options.input.dpeName}' of type '${options.input.dpType}'...`,
@@ -390,9 +430,9 @@ class CreateDatapointTool implements vscode.LanguageModelTool<{
                 title: 'Create Datapoint',
                 message: new vscode.MarkdownString(
                     `Do you want to create datapoint **${options.input.dpeName}** of type **${options.input.dpType}**?\n\n` +
-                    `⚠️ This will modify your WinCC OA system configuration.`
-                )
-            }
+                        `⚠️ This will modify your WinCC OA system configuration.`,
+                ),
+            },
         };
     }
 
@@ -403,7 +443,7 @@ class CreateDatapointTool implements vscode.LanguageModelTool<{
             systemId?: number;
             dpId?: number;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -411,7 +451,7 @@ class CreateDatapointTool implements vscode.LanguageModelTool<{
                 dpeName: options.input.dpeName,
                 dpType: options.input.dpType,
                 systemId: options.input.systemId,
-                dpId: options.input.dpId
+                dpId: options.input.dpId,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -419,9 +459,9 @@ class CreateDatapointTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -444,7 +484,7 @@ class DpSetTool implements vscode.LanguageModelTool<{
             dpeName: string;
             value: any;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Setting ${options.input.dpeName} = ${options.input.value}...`,
@@ -452,9 +492,9 @@ class DpSetTool implements vscode.LanguageModelTool<{
                 title: 'Set Datapoint Value',
                 message: new vscode.MarkdownString(
                     `Do you want to set **${options.input.dpeName}** to **${options.input.value}**?\n\n` +
-                    `⚠️ **WARNING:** This directly controls industrial equipment. Use with caution!`
-                )
-            }
+                        `⚠️ **WARNING:** This directly controls industrial equipment. Use with caution!`,
+                ),
+            },
         };
     }
 
@@ -463,15 +503,15 @@ class DpSetTool implements vscode.LanguageModelTool<{
             dpeName: string;
             value: any;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('dp-set', {
                 datapoints: {
                     dpeName: options.input.dpeName,
-                    value: options.input.value
-                }
+                    value: options.input.value,
+                },
             });
 
             if (!result.content || result.content.length === 0) {
@@ -479,9 +519,9 @@ class DpSetTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -504,7 +544,7 @@ class CreateDpTypeTool implements vscode.LanguageModelTool<{
             name: string;
             structure: any;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Creating datapoint type '${options.input.name}'...`,
@@ -512,9 +552,9 @@ class CreateDpTypeTool implements vscode.LanguageModelTool<{
                 title: 'Create Datapoint Type',
                 message: new vscode.MarkdownString(
                     `Do you want to create datapoint type **${options.input.name}**?\n\n` +
-                    `⚠️ This will modify your WinCC OA system configuration.`
-                )
-            }
+                        `⚠️ This will modify your WinCC OA system configuration.`,
+                ),
+            },
         };
     }
 
@@ -523,11 +563,11 @@ class CreateDpTypeTool implements vscode.LanguageModelTool<{
             name: string;
             structure: any;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
-            
+
             // MCP Server expects 'typeName' parameter, not 'name'
             // Parse structure if it's a string (from LLM)
             let structure = options.input.structure;
@@ -538,19 +578,19 @@ class CreateDpTypeTool implements vscode.LanguageModelTool<{
                     throw new Error(`Invalid structure JSON: ${e}`);
                 }
             }
-            
+
             // Ensure structure.name matches typeName
             structure = { ...structure };
             if (structure.name !== options.input.name) {
                 structure.name = options.input.name;
             }
-            
+
             ExtensionOutputChannel.debug(`Creating DP type: ${options.input.name}`);
             ExtensionOutputChannel.debug(`Structure: ${JSON.stringify(structure)}`);
-            
+
             const result = await client.callTool('dp-type-create', {
                 typeName: options.input.name,
-                structure: structure
+                structure: structure,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -569,14 +609,14 @@ class CreateDpTypeTool implements vscode.LanguageModelTool<{
                 }
                 response = { message: responseText };
             }
-            
+
             // Check if response indicates error
             if (response.error) {
                 throw new Error(response.message || 'Unknown error from MCP server');
             }
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -605,7 +645,7 @@ class AlarmSetTool implements vscode.LanguageModelTool<{
             alarmClasses?: string[];
             force?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Configuring alarm for ${options.input.dpe}...`,
@@ -613,11 +653,13 @@ class AlarmSetTool implements vscode.LanguageModelTool<{
                 title: 'Set Alarm Configuration',
                 message: new vscode.MarkdownString(
                     `Do you want to configure alarm for **${options.input.dpe}**?\n\n` +
-                    `Direction: **${options.input.direction}**\n` +
-                    (options.input.thresholds ? `Thresholds: **${options.input.thresholds.join(', ')}**\n` : '') +
-                    `\n⚠️ This will modify alarm configuration in your WinCC OA system.`
-                )
-            }
+                        `Direction: **${options.input.direction}**\n` +
+                        (options.input.thresholds
+                            ? `Thresholds: **${options.input.thresholds.join(', ')}**\n`
+                            : '') +
+                        `\n⚠️ This will modify alarm configuration in your WinCC OA system.`,
+                ),
+            },
         };
     }
 
@@ -629,7 +671,7 @@ class AlarmSetTool implements vscode.LanguageModelTool<{
             alarmClasses?: string[];
             force?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -639,8 +681,8 @@ class AlarmSetTool implements vscode.LanguageModelTool<{
                     direction: options.input.direction,
                     thresholds: options.input.thresholds,
                     alarmClasses: options.input.alarmClasses,
-                    force: options.input.force
-                }
+                    force: options.input.force,
+                },
             });
 
             if (!result.content || result.content.length === 0) {
@@ -648,9 +690,9 @@ class AlarmSetTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -671,7 +713,7 @@ class AlarmDeleteTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationPrepareOptions<{
             dpe: string;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Deleting alarm configuration for ${options.input.dpe}...`,
@@ -679,9 +721,9 @@ class AlarmDeleteTool implements vscode.LanguageModelTool<{
                 title: 'Delete Alarm Configuration',
                 message: new vscode.MarkdownString(
                     `Do you want to **delete** alarm configuration for **${options.input.dpe}**?\n\n` +
-                    `⚠️ This action cannot be undone!`
-                )
-            }
+                        `⚠️ This action cannot be undone!`,
+                ),
+            },
         };
     }
 
@@ -689,12 +731,12 @@ class AlarmDeleteTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationOptions<{
             dpe: string;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('alarm-delete', {
-                dpe: options.input.dpe
+                dpe: options.input.dpe,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -702,9 +744,9 @@ class AlarmDeleteTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -729,7 +771,7 @@ class ArchiveSetTool implements vscode.LanguageModelTool<{
             archiveClass?: string;
             force?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Configuring archive for ${options.input.dpe}...`,
@@ -737,10 +779,10 @@ class ArchiveSetTool implements vscode.LanguageModelTool<{
                 title: 'Set Archive Configuration',
                 message: new vscode.MarkdownString(
                     `Do you want to configure archiving for **${options.input.dpe}**?\n\n` +
-                    `Archive Class: **${options.input.archiveClass || '_NGA_G_EVENT'}**\n\n` +
-                    `⚠️ This will enable historical data collection.`
-                )
-            }
+                        `Archive Class: **${options.input.archiveClass || '_NGA_G_EVENT'}**\n\n` +
+                        `⚠️ This will enable historical data collection.`,
+                ),
+            },
         };
     }
 
@@ -750,7 +792,7 @@ class ArchiveSetTool implements vscode.LanguageModelTool<{
             archiveClass?: string;
             force?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -758,8 +800,8 @@ class ArchiveSetTool implements vscode.LanguageModelTool<{
                 config: {
                     dpe: options.input.dpe,
                     archiveClass: options.input.archiveClass,
-                    force: options.input.force
-                }
+                    force: options.input.force,
+                },
             });
 
             if (!result.content || result.content.length === 0) {
@@ -767,9 +809,9 @@ class ArchiveSetTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -798,7 +840,7 @@ class CommonSetTool implements vscode.LanguageModelTool<{
             format?: string | { [lang: string]: string };
             unit?: string | { [lang: string]: string };
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Configuring common attributes for ${options.input.dpe}...`,
@@ -806,9 +848,9 @@ class CommonSetTool implements vscode.LanguageModelTool<{
                 title: 'Set Common Configuration',
                 message: new vscode.MarkdownString(
                     `Do you want to configure common attributes for **${options.input.dpe}**?\n\n` +
-                    `⚠️ This will modify datapoint metadata.`
-                )
-            }
+                        `⚠️ This will modify datapoint metadata.`,
+                ),
+            },
         };
     }
 
@@ -820,7 +862,7 @@ class CommonSetTool implements vscode.LanguageModelTool<{
             format?: string | { [lang: string]: string };
             unit?: string | { [lang: string]: string };
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -830,8 +872,8 @@ class CommonSetTool implements vscode.LanguageModelTool<{
                     description: options.input.description,
                     alias: options.input.alias,
                     format: options.input.format,
-                    unit: options.input.unit
-                }
+                    unit: options.input.unit,
+                },
             });
 
             if (!result.content || result.content.length === 0) {
@@ -839,9 +881,9 @@ class CommonSetTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -872,7 +914,7 @@ class PvRangeSetTool implements vscode.LanguageModelTool<{
             includeMax?: boolean;
             force?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Configuring PV range for ${options.input.dpe}...`,
@@ -880,10 +922,10 @@ class PvRangeSetTool implements vscode.LanguageModelTool<{
                 title: 'Set PV Range',
                 message: new vscode.MarkdownString(
                     `Do you want to configure PV range for **${options.input.dpe}**?\n\n` +
-                    `Range: **${options.input.min}** to **${options.input.max}**\n\n` +
-                    `⚠️ This will set min/max validation for the datapoint.`
-                )
-            }
+                        `Range: **${options.input.min}** to **${options.input.max}**\n\n` +
+                        `⚠️ This will set min/max validation for the datapoint.`,
+                ),
+            },
         };
     }
 
@@ -896,7 +938,7 @@ class PvRangeSetTool implements vscode.LanguageModelTool<{
             includeMax?: boolean;
             force?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -907,8 +949,8 @@ class PvRangeSetTool implements vscode.LanguageModelTool<{
                     max: options.input.max,
                     includeMin: options.input.includeMin,
                     includeMax: options.input.includeMax,
-                    force: options.input.force
-                }
+                    force: options.input.force,
+                },
             });
 
             if (!result.content || result.content.length === 0) {
@@ -916,9 +958,9 @@ class PvRangeSetTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -939,12 +981,12 @@ class ModbusAddressGetTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationOptions<{
             dpName: string;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('modbus-get-address-config', {
-                dpName: options.input.dpName
+                dpName: options.input.dpName,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -952,9 +994,9 @@ class ModbusAddressGetTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -989,7 +1031,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
             active?: boolean;
             lowlevel?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         const reference = `M.${options.input.connectionId}.${options.input.functionCode}.${options.input.registerAddress}`;
         return {
@@ -998,13 +1040,13 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
                 title: 'Set Modbus Address Configuration',
                 message: new vscode.MarkdownString(
                     `Do you want to configure Modbus address for **${options.input.dpName}**?\n\n` +
-                    `Reference: **${reference}**\n` +
-                    `Connection ID: **${options.input.connectionId}**\n` +
-                    `Function Code: **${options.input.functionCode}**\n` +
-                    `Register: **${options.input.registerAddress}**\n\n` +
-                    `⚠️ This will configure peripheral address in your WinCC OA system.`
-                )
-            }
+                        `Reference: **${reference}**\n` +
+                        `Connection ID: **${options.input.connectionId}**\n` +
+                        `Function Code: **${options.input.functionCode}**\n` +
+                        `Register: **${options.input.registerAddress}**\n\n` +
+                        `⚠️ This will configure peripheral address in your WinCC OA system.`,
+                ),
+            },
         };
     }
 
@@ -1019,7 +1061,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
             active?: boolean;
             lowlevel?: boolean;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
@@ -1031,7 +1073,7 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
                 datatype: options.input.datatype,
                 direction: options.input.direction,
                 active: options.input.active,
-                lowlevel: options.input.lowlevel
+                lowlevel: options.input.lowlevel,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -1051,9 +1093,9 @@ class ModbusAddressSetTool implements vscode.LanguageModelTool<{
             if (response.error) {
                 throw new Error(response.message || 'MCP tool execution failed');
             }
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);
@@ -1074,7 +1116,7 @@ class ModbusAddressRemoveTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationPrepareOptions<{
             dpName: string;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.PreparedToolInvocation> {
         return {
             invocationMessage: `Removing Modbus address from ${options.input.dpName}...`,
@@ -1082,9 +1124,9 @@ class ModbusAddressRemoveTool implements vscode.LanguageModelTool<{
                 title: 'Remove Modbus Address Configuration',
                 message: new vscode.MarkdownString(
                     `Do you want to **remove** Modbus address configuration from **${options.input.dpName}**?\n\n` +
-                    `⚠️ This will deactivate the address and clear distribution config.`
-                )
-            }
+                        `⚠️ This will deactivate the address and clear distribution config.`,
+                ),
+            },
         };
     }
 
@@ -1092,12 +1134,12 @@ class ModbusAddressRemoveTool implements vscode.LanguageModelTool<{
         options: vscode.LanguageModelToolInvocationOptions<{
             dpName: string;
         }>,
-        token: vscode.CancellationToken
+        token: vscode.CancellationToken,
     ): Promise<vscode.LanguageModelToolResult> {
         try {
             const client = this.getClient();
             const result = await client.callTool('modbus-remove-address-config', {
-                dpName: options.input.dpName
+                dpName: options.input.dpName,
             });
 
             if (!result.content || result.content.length === 0) {
@@ -1105,9 +1147,9 @@ class ModbusAddressRemoveTool implements vscode.LanguageModelTool<{
             }
 
             const response = JSON.parse(result.content[0].text!);
-            
+
             return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2))
+                new vscode.LanguageModelTextPart(JSON.stringify(response, null, 2)),
             ]);
         } catch (error: any) {
             ExtensionOutputChannel.error(`Tool error: ${error.message}`);

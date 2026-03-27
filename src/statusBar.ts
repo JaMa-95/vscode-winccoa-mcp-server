@@ -1,6 +1,6 @@
 /**
  * Status Bar Manager for MCP Server
- * 
+ *
  * Displays MCP Server connection status in VS Code status bar.
  */
 
@@ -15,7 +15,7 @@ export class StatusBarManager {
     constructor() {
         this.statusBarItem = vscode.window.createStatusBarItem(
             vscode.StatusBarAlignment.Right,
-            100
+            100,
         );
         this.statusBarItem.command = 'winccoa.mcp.showMenu';
         this.updateDisplay();
@@ -42,21 +42,21 @@ export class StatusBarManager {
      */
     private updateDisplay(message?: string): void {
         const icons = {
-            connected: '$(wand)',           // Magic wand - AI assistant
+            connected: '$(wand)', // Magic wand - AI assistant
             disconnected: '$(circle-slash)',
             connecting: '$(sync~spin)',
-            error: '$(error)'
+            error: '$(error)',
         };
 
         const colors = {
             connected: undefined,
             disconnected: new vscode.ThemeColor('statusBarItem.warningBackground'),
             connecting: undefined,
-            error: new vscode.ThemeColor('statusBarItem.errorBackground')
+            error: new vscode.ThemeColor('statusBarItem.errorBackground'),
         };
 
         const statusText = message || this.currentStatus;
-        
+
         this.statusBarItem.text = `${icons[this.currentStatus]} WinCC OA Copilot`;
         this.statusBarItem.tooltip = `WinCC OA Copilot: ${statusText}\nClick for menu`;
         this.statusBarItem.backgroundColor = colors[this.currentStatus];
@@ -67,7 +67,7 @@ export class StatusBarManager {
      */
     setConnectionInfo(serverName?: string, toolCount?: number): void {
         if (serverName && toolCount !== undefined) {
-            this.statusBarItem.tooltip = 
+            this.statusBarItem.tooltip =
                 `WinCC OA Copilot: ${this.currentStatus}\n` +
                 `Server: ${serverName}\n` +
                 `Tools: ${toolCount}\n` +

@@ -7,6 +7,10 @@
 		{
 			"name": "NewMCPTest",
 			"path": "../../WinCCOA_Proj/NewMCPTest"
+		},
+		{
+			"name": "DpInspector",
+			"path": "../winccoa-json-db-import/DpInspector"
 		}
 	],
 	"settings": {

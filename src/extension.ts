@@ -1143,12 +1143,12 @@ async function changeServerPort(config: McpConfig): Promise<void> {
 
         ExtensionOutputChannel.info(`✅ Updated .env file: MCP_HTTP_PORT=${newPort}`);
 
+        // IMPORTANT: Invalidate cache BEFORE reconnect, otherwise reconnect uses old cached config!
+        configDetector.invalidateCache();
+
         vscode.window.showInformationMessage(
             `Port changed to ${newPort}. Restarting MCP Server...`,
         );
-
-        // Wait a moment for file watcher to trigger, or force reconnect
-        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Force reconnect (will pick up new port from .env)
         await vscode.commands.executeCommand('winccoa.mcp.reconnect');

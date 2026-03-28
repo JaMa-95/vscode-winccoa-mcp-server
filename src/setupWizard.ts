@@ -264,7 +264,6 @@ export class SetupWizard {
      * Fetch JSON from a URL (HTTPS only)
      */
     private static fetchJson(url: string): Promise<any> {
-         
         const https = require('https');
         const parsed = new URL(url);
 
@@ -301,11 +300,10 @@ export class SetupWizard {
      * Download a file from a URL to a local path, following redirects
      */
     private static downloadFile(url: string, destPath: string): Promise<void> {
-         
         const https = require('https');
-         
+
         const http = require('http');
-         
+
         const fsSync = require('fs');
 
         return new Promise((resolve, reject) => {

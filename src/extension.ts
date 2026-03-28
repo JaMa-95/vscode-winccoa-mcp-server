@@ -9,7 +9,6 @@ import * as vscode from 'vscode';
 import { McpClient } from './mcpClient';
 import { ExtensionOutputChannel } from './extensionOutput';
 import { StatusBarManager } from './statusBar';
-import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
 import { ConnectionMonitor } from './connectionMonitor';
@@ -26,7 +25,6 @@ let connectionMonitor: ConnectionMonitor | null = null;
 const connectionChangeEmitter = new vscode.EventEmitter<McpConnectionInfo | null>();
 
 let statusBar: StatusBarManager;
-let languageModelTools: LanguageModelTools;
 let configDetector: ProjectConfigDetector;
 
 /**
@@ -41,10 +39,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<McpSer
     // Initialize Status Bar
     statusBar = new StatusBarManager();
     context.subscriptions.push(statusBar);
-
-    // Initialize Language Model Tools (always register, even without client)
-    languageModelTools = new LanguageModelTools(null);
-    languageModelTools.register(context);
 
     // Auto-connect to MCP server on startup
     try {
@@ -158,6 +152,35 @@ function buildConnectionInfo(): McpConnectionInfo | null {
 }
 
 /**
+ * Write MCP server config to VS Code global User Settings so that
+ * GitHub Copilot (and any VS Code MCP consumer) picks it up directly.
+ * Overwrites the "winccoa" entry; all other server entries are preserved.
+ */
+async function writeMcpSettings(config: McpConfig): Promise<void> {
+    try {
+        const mcpConfig = vscode.workspace.getConfiguration('mcp');
+        const existing: Record<string, any> = mcpConfig.get<Record<string, any>>('servers') ?? {};
+
+        existing['winccoa'] = {
+            type: 'http',
+            url: config.url,
+            headers: {
+                Authorization: `Bearer ${config.token}`,
+            },
+        };
+
+        await mcpConfig.update('servers', existing, vscode.ConfigurationTarget.Global);
+        ExtensionOutputChannel.info(
+            `✅ mcp.servers.winccoa written to global settings (${config.url})`,
+        );
+    } catch (error: any) {
+        ExtensionOutputChannel.warn(
+            `Could not write mcp.servers to global settings: ${error.message}`,
+        );
+    }
+}
+
+/**
  * Create and initialize MCP Client (persistent)
  */
 async function createClient(config: McpConfig): Promise<McpClient> {
@@ -174,8 +197,8 @@ async function createClient(config: McpConfig): Promise<McpClient> {
     mcpClient = client;
     currentConfig = config;
 
-    // Update all components
-    languageModelTools.updateClient(client);
+    // Write MCP server config to VS Code global settings for Copilot
+    await writeMcpSettings(config);
 
     // Start connection monitoring
     startConnectionMonitor();
@@ -207,9 +230,6 @@ async function disposeClient(): Promise<void> {
         // Client might have dispose/close method in future
         mcpClient = null;
         currentConfig = null;
-
-        // Update components
-        languageModelTools.updateClient(null);
 
         // Notify consumers of disconnection
         connectionChangeEmitter.fire(null);
@@ -396,87 +416,87 @@ async function showMenu(): Promise<void> {
 }
 
 /**
- * Show Server Info (Version, Tools, etc.)
+ * Show Server Info and Configuration Options
  */
 async function showServerInfo(): Promise<void> {
     try {
-        statusBar.setStatus('connecting', 'Fetching server info...');
-
         const client = getClient();
         if (!client || !currentConfig) {
             vscode.window.showWarningMessage('Not connected to MCP Server');
-            statusBar.setStatus('error', 'No connection');
             return;
         }
 
         const config = currentConfig;
 
-        const initResult = await client.initialize();
-        const tools = await client.listTools();
-        const resources = await client.listResources();
-
-        statusBar.setStatus('connected');
-        statusBar.setConnectionInfo(initResult.serverInfo.name, tools.length);
+        // Extract port from URL (e.g., http://localhost:3000/mcp → 3000)
+        const portMatch = config.url.match(/:(\d+)\//);
+        const currentPort = portMatch ? portMatch[1] : 'Unknown';
 
         // Build QuickPick items
         const items: vscode.QuickPickItem[] = [
             {
-                label: '$(server) Server Information',
+                label: '$(server) Server Configuration',
                 kind: vscode.QuickPickItemKind.Separator,
             },
             {
                 label: '$(project) Project',
                 description: config.projectName || 'Unknown',
-                detail: `WinCC OA Project`,
-            },
-            {
-                label: '$(server-process) Server',
-                description: `${initResult.serverInfo.name} ${initResult.serverInfo.version}`,
-                detail: `MCP Server Implementation`,
-            },
-            {
-                label: '$(plug) Protocol',
-                description: initResult.protocolVersion,
-                detail: `Model Context Protocol Version`,
+                detail: config.projectPath || '',
             },
             {
                 label: '$(globe) URL',
                 description: config.url,
-                detail: `MCP Server Endpoint`,
+                detail: 'MCP Server Endpoint',
             },
             {
-                label: '$(tools) Available Tools',
-                kind: vscode.QuickPickItemKind.Separator,
+                label: '$(plug) Port',
+                description: currentPort,
+                detail: 'HTTP Port (from .env file)',
             },
-            ...tools.map((t) => ({
-                label: `$(symbol-method) ${t.name}`,
-                description: t.description?.split('\n')[0] || '',
-                detail: t.description?.split('\n').slice(1).join(' ') || 'No description',
-            })),
             {
-                label: '$(folder) Available Resources',
+                label: '$(key) Auth',
+                description: config.authType,
+                detail: 'Authentication Type',
+            },
+            {
+                label: '$(settings) Actions',
                 kind: vscode.QuickPickItemKind.Separator,
             },
-            ...resources.map((r) => ({
-                label: `$(file) ${r.name || r.uri}`,
-                description: r.uri,
-                detail: r.description || r.mimeType || 'No description',
-            })),
+            {
+                label: '$(edit) Change Port',
+                description: 'Modify MCP_HTTP_PORT in .env',
+                detail: 'Change server port and restart automatically',
+            },
+            {
+                label: '$(file) Open .env File',
+                description: 'Edit configuration manually',
+                detail: config.projectPath ? `${config.projectPath}/javascript/mcpServer/.env` : '',
+            },
         ];
 
-        // Show QuickPick (non-interactive, just for display)
-        await vscode.window.showQuickPick(items, {
-            title: `$(wand) WinCC OA MCP Server - ${config.projectName || 'Unknown'}`,
-            placeHolder: `${tools.length} tools, ${resources.length} resources available`,
+        // Show QuickPick
+        const selected = await vscode.window.showQuickPick(items, {
+            title: `WinCC OA MCP Server - ${config.projectName || 'Unknown'}`,
+            placeHolder: `Connected to ${config.url}`,
             matchOnDescription: true,
             matchOnDetail: true,
         });
 
-        ExtensionOutputChannel.info('Server info retrieved successfully');
+        if (!selected) {
+            return;
+        }
+
+        // Handle actions
+        if (selected.label.includes('Change Port')) {
+            await changeServerPort(config);
+        } else if (selected.label.includes('Open .env')) {
+            await openEnvFile(config);
+        }
+
+        ExtensionOutputChannel.info('Server info displayed');
     } catch (error: any) {
-        statusBar.setStatus('error', 'Connection failed');
         ExtensionOutputChannel.error(`showServerInfo error: ${error.message}`);
-        vscode.window.showErrorMessage(`Failed to get server info: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to show server info: ${error.message}`);
     }
 }
 
@@ -818,6 +838,69 @@ async function tryStartMcpManager(config: McpConfig): Promise<boolean> {
 }
 
 /**
+ * Restart the MCP Server manager (stop + start)
+ * Returns true if restart succeeded
+ */
+async function restartMcpManager(config: McpConfig): Promise<boolean> {
+    const { PmonComponent } = await import('@winccoa-tools-pack/npm-winccoa-core');
+    const projectId = config.projectId;
+    const version = config.winCCOAVersion;
+
+    if (!projectId) {
+        ExtensionOutputChannel.warn('restartMcpManager: no projectId in config – skipping');
+        return false;
+    }
+
+    try {
+        const pmon = new PmonComponent();
+        if (version) {
+            try {
+                pmon.setVersion(version);
+            } catch {
+                ExtensionOutputChannel.warn(`Could not set WinCC OA version ${version} for PMON`);
+            }
+        }
+
+        // Find the MCP Server manager by matching startOptions
+        const managers = await pmon.getManagerOptionsList(projectId);
+        const mcpIndex = managers.findIndex(
+            (m) => m.component === 'node' && m.startOptions?.includes('mcpServer'),
+        );
+
+        if (mcpIndex < 0) {
+            ExtensionOutputChannel.warn(
+                'restartMcpManager: MCP Server manager not found in PMON list',
+            );
+            return false;
+        }
+
+        ExtensionOutputChannel.info(`Stopping MCP Server manager at index ${mcpIndex}...`);
+        const stopExitCode = await pmon.stopManager(projectId, mcpIndex);
+
+        if (stopExitCode !== 0) {
+            ExtensionOutputChannel.warn(`PMON stopManager returned exit code ${stopExitCode}`);
+        }
+
+        // Wait for manager to stop
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        ExtensionOutputChannel.info(`Starting MCP Server manager at index ${mcpIndex}...`);
+        const startExitCode = await pmon.startManager(projectId, mcpIndex);
+
+        if (startExitCode === 0) {
+            ExtensionOutputChannel.info('✅ MCP Server manager restarted successfully');
+            return true;
+        }
+
+        ExtensionOutputChannel.warn(`PMON startManager returned exit code ${startExitCode}`);
+        return false;
+    } catch (err: any) {
+        ExtensionOutputChannel.warn(`restartMcpManager failed: ${err.message}`);
+        return false;
+    }
+}
+
+/**
  * Execute WinCC OA Script via Script Actions Extension
  */
 async function executeScript(scriptPath: string, args: string = ''): Promise<void> {
@@ -1069,5 +1152,121 @@ async function resetAndReinstall(): Promise<void> {
     } catch (error: any) {
         ExtensionOutputChannel.error(`Reset error: ${error.message}`);
         vscode.window.showErrorMessage(`Reset failed: ${error.message}`);
+    }
+}
+
+/**
+ * Change MCP Server Port
+ */
+async function changeServerPort(config: McpConfig): Promise<void> {
+    try {
+        if (!config.projectPath) {
+            throw new Error('Project path not available');
+        }
+
+        // Extract current port from URL
+        const portMatch = config.url.match(/:(\d+)\//);
+        const currentPort = portMatch ? portMatch[1] : '3000';
+
+        // Ask user for new port
+        const newPort = await vscode.window.showInputBox({
+            prompt: 'Enter new MCP Server port',
+            value: currentPort,
+            validateInput: (value) => {
+                const port = parseInt(value, 10);
+                if (isNaN(port) || port < 1024 || port > 65535) {
+                    return 'Port must be between 1024 and 65535';
+                }
+                if (port === 3000) {
+                    return 'Port 3000 is reserved for WinCC OA UI Manager';
+                }
+                return null;
+            },
+        });
+
+        if (!newPort || newPort === currentPort) {
+            ExtensionOutputChannel.info('Port change cancelled');
+            return;
+        }
+
+        ExtensionOutputChannel.info(
+            `Changing MCP Server port from ${currentPort} to ${newPort}...`,
+        );
+
+        // Path to .env file
+        const path = await import('path');
+        const fs = await import('fs/promises');
+        const envPath = path.join(config.projectPath, 'javascript', 'mcpServer', '.env');
+
+        // Read .env file
+        const envContent = await fs.readFile(envPath, 'utf8');
+
+        // Replace port in .env
+        const updatedEnv = envContent.replace(/^MCP_HTTP_PORT=.*$/m, `MCP_HTTP_PORT=${newPort}`);
+
+        // Write back to .env
+        await fs.writeFile(envPath, updatedEnv, 'utf8');
+
+        ExtensionOutputChannel.info(`✅ Updated .env file: MCP_HTTP_PORT=${newPort}`);
+
+        // IMPORTANT: Invalidate cache BEFORE reconnect, otherwise reconnect uses old cached config!
+        configDetector.invalidateCache();
+
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Changing MCP Server port to ${newPort}`,
+                cancellable: false,
+            },
+            async (progress) => {
+                progress.report({ increment: 0, message: 'Stopping MCP Server Manager...' });
+
+                // Restart the MCP Server manager to apply new port
+                const restarted = await restartMcpManager(config);
+
+                if (!restarted) {
+                    throw new Error('Failed to restart MCP Server manager');
+                }
+
+                progress.report({ increment: 50, message: 'Waiting for server to start...' });
+
+                // Wait for manager to initialize with new port
+                await new Promise((resolve) => setTimeout(resolve, 6000));
+
+                progress.report({ increment: 80, message: 'Reconnecting extension...' });
+
+                // Force reconnect (will pick up new port from .env)
+                await vscode.commands.executeCommand('winccoa.mcp.reconnect');
+
+                progress.report({ increment: 100, message: 'Port changed successfully!' });
+            },
+        );
+
+        ExtensionOutputChannel.info(`✅ MCP Server restarted with new port: ${newPort}`);
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`changeServerPort error: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to change port: ${error.message}`);
+    }
+}
+
+/**
+ * Open .env file in editor
+ */
+async function openEnvFile(config: McpConfig): Promise<void> {
+    try {
+        if (!config.projectPath) {
+            throw new Error('Project path not available');
+        }
+
+        const path = await import('path');
+        const envPath = path.join(config.projectPath, 'javascript', 'mcpServer', '.env');
+
+        const uri = vscode.Uri.file(envPath);
+        await vscode.window.showTextDocument(uri);
+
+        ExtensionOutputChannel.info(`Opened .env file: ${envPath}`);
+    } catch (error: any) {
+        ExtensionOutputChannel.error(`openEnvFile error: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to open .env file: ${error.message}`);
     }
 }

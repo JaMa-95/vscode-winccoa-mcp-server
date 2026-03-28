@@ -31,15 +31,6 @@ export interface McpResource {
     mimeType?: string;
 }
 
-export interface McpToolResult {
-    content?: Array<{
-        type: string;
-        text?: string;
-        [key: string]: any;
-    }>;
-    isError?: boolean;
-}
-
 /**
  * Core MCP Client for WinCC OA
  */
@@ -103,41 +94,6 @@ export class McpClient {
         });
 
         return response.result?.resources || [];
-    }
-
-    /**
-     * Call a specific MCP tool
-     */
-    async callTool(toolName: string, args: Record<string, any> = {}): Promise<McpToolResult> {
-        const response = await this.sendRequest({
-            jsonrpc: '2.0',
-            method: 'tools/call',
-            params: {
-                name: toolName,
-                arguments: args,
-            },
-            id: this.getNextId(),
-        });
-
-        return response.result;
-    }
-
-    /**
-     * Read a resource
-     */
-    async readResource(
-        uri: string,
-    ): Promise<{ contents: Array<{ uri: string; mimeType?: string; text?: string }> }> {
-        const response = await this.sendRequest({
-            jsonrpc: '2.0',
-            method: 'resources/read',
-            params: {
-                uri,
-            },
-            id: this.getNextId(),
-        });
-
-        return response.result;
     }
 
     /**

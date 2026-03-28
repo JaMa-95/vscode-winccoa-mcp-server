@@ -9,7 +9,6 @@ import * as vscode from 'vscode';
 import { McpClient } from './mcpClient';
 import { ExtensionOutputChannel } from './extensionOutput';
 import { StatusBarManager } from './statusBar';
-import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
 import { ConnectionMonitor } from './connectionMonitor';
@@ -26,7 +25,6 @@ let connectionMonitor: ConnectionMonitor | null = null;
 const connectionChangeEmitter = new vscode.EventEmitter<McpConnectionInfo | null>();
 
 let statusBar: StatusBarManager;
-let languageModelTools: LanguageModelTools;
 let configDetector: ProjectConfigDetector;
 
 /**
@@ -41,10 +39,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<McpSer
     // Initialize Status Bar
     statusBar = new StatusBarManager();
     context.subscriptions.push(statusBar);
-
-    // Initialize Language Model Tools (always register, even without client)
-    languageModelTools = new LanguageModelTools(null);
-    languageModelTools.register(context);
 
     // Auto-connect to MCP server on startup
     try {
@@ -158,6 +152,31 @@ function buildConnectionInfo(): McpConnectionInfo | null {
 }
 
 /**
+ * Write MCP server config to VS Code global User Settings so that
+ * GitHub Copilot (and any VS Code MCP consumer) picks it up directly.
+ * Overwrites the "winccoa" entry; all other server entries are preserved.
+ */
+async function writeMcpSettings(config: McpConfig): Promise<void> {
+    try {
+        const mcpConfig = vscode.workspace.getConfiguration('mcp');
+        const existing: Record<string, any> = mcpConfig.get<Record<string, any>>('servers') ?? {};
+
+        existing['winccoa'] = {
+            type: 'http',
+            url: config.url,
+            headers: {
+                Authorization: `Bearer ${config.token}`,
+            },
+        };
+
+        await mcpConfig.update('servers', existing, vscode.ConfigurationTarget.Global);
+        ExtensionOutputChannel.info(`✅ mcp.servers.winccoa written to global settings (${config.url})`);
+    } catch (error: any) {
+        ExtensionOutputChannel.warn(`Could not write mcp.servers to global settings: ${error.message}`);
+    }
+}
+
+/**
  * Create and initialize MCP Client (persistent)
  */
 async function createClient(config: McpConfig): Promise<McpClient> {
@@ -174,8 +193,8 @@ async function createClient(config: McpConfig): Promise<McpClient> {
     mcpClient = client;
     currentConfig = config;
 
-    // Update all components
-    languageModelTools.updateClient(client);
+    // Write MCP server config to VS Code global settings for Copilot
+    await writeMcpSettings(config);
 
     // Start connection monitoring
     startConnectionMonitor();
@@ -207,9 +226,6 @@ async function disposeClient(): Promise<void> {
         // Client might have dispose/close method in future
         mcpClient = null;
         currentConfig = null;
-
-        // Update components
-        languageModelTools.updateClient(null);
 
         // Notify consumers of disconnection
         connectionChangeEmitter.fire(null);

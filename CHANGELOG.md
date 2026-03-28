@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-03-28
+
+### ✨ Added
+- **Native VS Code MCP integration**: Extension now writes the WinCC OA MCP Server config directly into VS Code global User Settings (`mcp.servers.winccoa`) on every successful connection. GitHub Copilot and all MCP consumers in VS Code pick up all 30+ server tools automatically — no extension-side tool wrappers needed. Config is updated on every project switch.
+
+### 🗑️ Removed
+- **LM Tool wrappers** (`languageModelTools.ts`, 1193 lines): Deleted — replaced by native `mcp.servers` settings entry. The 16 wrapped tools were also using outdated tool names (broken since MCP Server v0.1.4).
+- **Chat Participant** (`chatParticipant.ts`, 265 lines): Deleted — was dead code (not imported in `extension.ts`, no `contributes.chatParticipants` entry).
+- **`contributes.languageModelTools`** in `package.json`: All ~553 lines of tool schema declarations removed; VS Code/Copilot reads schemas directly from the running MCP Server.
+- **`McpClient.callTool()` / `readResource()` / `McpToolResult`**: Removed from `mcpClient.ts`; `McpClient` is now only used for health-check pings (`testConnection()`) and server info queries (`listTools()`, `listResources()`).
+
+### 🏗️ Build
+- VSIX size reduced significantly (no large `contributes.languageModelTools` blob in manifest).
+
 ## [1.8.0] - 2026-03-28
 
 > Based on [PR #37](https://github.com/winccoa-tools-pack/vscode-winccoa-mcp-server/pull/37) by [@JaMa-95](https://github.com/JaMa-95)

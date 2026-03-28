@@ -170,9 +170,13 @@ async function writeMcpSettings(config: McpConfig): Promise<void> {
         };
 
         await mcpConfig.update('servers', existing, vscode.ConfigurationTarget.Global);
-        ExtensionOutputChannel.info(`✅ mcp.servers.winccoa written to global settings (${config.url})`);
+        ExtensionOutputChannel.info(
+            `✅ mcp.servers.winccoa written to global settings (${config.url})`,
+        );
     } catch (error: any) {
-        ExtensionOutputChannel.warn(`Could not write mcp.servers to global settings: ${error.message}`);
+        ExtensionOutputChannel.warn(
+            `Could not write mcp.servers to global settings: ${error.message}`,
+        );
     }
 }
 
@@ -1185,7 +1189,9 @@ async function changeServerPort(config: McpConfig): Promise<void> {
             return;
         }
 
-        ExtensionOutputChannel.info(`Changing MCP Server port from ${currentPort} to ${newPort}...`);
+        ExtensionOutputChannel.info(
+            `Changing MCP Server port from ${currentPort} to ${newPort}...`,
+        );
 
         // Path to .env file
         const path = await import('path');
@@ -1196,10 +1202,7 @@ async function changeServerPort(config: McpConfig): Promise<void> {
         const envContent = await fs.readFile(envPath, 'utf8');
 
         // Replace port in .env
-        const updatedEnv = envContent.replace(
-            /^MCP_HTTP_PORT=.*$/m,
-            `MCP_HTTP_PORT=${newPort}`,
-        );
+        const updatedEnv = envContent.replace(/^MCP_HTTP_PORT=.*$/m, `MCP_HTTP_PORT=${newPort}`);
 
         // Write back to .env
         await fs.writeFile(envPath, updatedEnv, 'utf8');

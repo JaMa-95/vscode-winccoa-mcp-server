@@ -834,6 +834,69 @@ async function tryStartMcpManager(config: McpConfig): Promise<boolean> {
 }
 
 /**
+ * Restart the MCP Server manager (stop + start)
+ * Returns true if restart succeeded
+ */
+async function restartMcpManager(config: McpConfig): Promise<boolean> {
+    const { PmonComponent } = await import('@winccoa-tools-pack/npm-winccoa-core');
+    const projectId = config.projectId;
+    const version = config.winCCOAVersion;
+
+    if (!projectId) {
+        ExtensionOutputChannel.warn('restartMcpManager: no projectId in config – skipping');
+        return false;
+    }
+
+    try {
+        const pmon = new PmonComponent();
+        if (version) {
+            try {
+                pmon.setVersion(version);
+            } catch {
+                ExtensionOutputChannel.warn(`Could not set WinCC OA version ${version} for PMON`);
+            }
+        }
+
+        // Find the MCP Server manager by matching startOptions
+        const managers = await pmon.getManagerOptionsList(projectId);
+        const mcpIndex = managers.findIndex(
+            (m) => m.component === 'node' && m.startOptions?.includes('mcpServer'),
+        );
+
+        if (mcpIndex < 0) {
+            ExtensionOutputChannel.warn(
+                'restartMcpManager: MCP Server manager not found in PMON list',
+            );
+            return false;
+        }
+
+        ExtensionOutputChannel.info(`Stopping MCP Server manager at index ${mcpIndex}...`);
+        const stopExitCode = await pmon.stopManager(projectId, mcpIndex);
+
+        if (stopExitCode !== 0) {
+            ExtensionOutputChannel.warn(`PMON stopManager returned exit code ${stopExitCode}`);
+        }
+
+        // Wait for manager to stop
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        ExtensionOutputChannel.info(`Starting MCP Server manager at index ${mcpIndex}...`);
+        const startExitCode = await pmon.startManager(projectId, mcpIndex);
+
+        if (startExitCode === 0) {
+            ExtensionOutputChannel.info('✅ MCP Server manager restarted successfully');
+            return true;
+        }
+
+        ExtensionOutputChannel.warn(`PMON startManager returned exit code ${startExitCode}`);
+        return false;
+    } catch (err: any) {
+        ExtensionOutputChannel.warn(`restartMcpManager failed: ${err.message}`);
+        return false;
+    }
+}
+
+/**
  * Execute WinCC OA Script via Script Actions Extension
  */
 async function executeScript(scriptPath: string, args: string = ''): Promise<void> {
@@ -1146,12 +1209,37 @@ async function changeServerPort(config: McpConfig): Promise<void> {
         // IMPORTANT: Invalidate cache BEFORE reconnect, otherwise reconnect uses old cached config!
         configDetector.invalidateCache();
 
-        vscode.window.showInformationMessage(
-            `Port changed to ${newPort}. Restarting MCP Server...`,
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Changing MCP Server port to ${newPort}`,
+                cancellable: false,
+            },
+            async (progress) => {
+                progress.report({ increment: 0, message: 'Stopping MCP Server Manager...' });
+
+                // Restart the MCP Server manager to apply new port
+                const restarted = await restartMcpManager(config);
+
+                if (!restarted) {
+                    throw new Error('Failed to restart MCP Server manager');
+                }
+
+                progress.report({ increment: 50, message: 'Waiting for server to start...' });
+
+                // Wait for manager to initialize with new port
+                await new Promise((resolve) => setTimeout(resolve, 6000));
+
+                progress.report({ increment: 80, message: 'Reconnecting extension...' });
+
+                // Force reconnect (will pick up new port from .env)
+                await vscode.commands.executeCommand('winccoa.mcp.reconnect');
+
+                progress.report({ increment: 100, message: 'Port changed successfully!' });
+            },
         );
 
-        // Force reconnect (will pick up new port from .env)
-        await vscode.commands.executeCommand('winccoa.mcp.reconnect');
+        ExtensionOutputChannel.info(`✅ MCP Server restarted with new port: ${newPort}`);
     } catch (error: any) {
         ExtensionOutputChannel.error(`changeServerPort error: ${error.message}`);
         vscode.window.showErrorMessage(`Failed to change port: ${error.message}`);

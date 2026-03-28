@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+- **Port Configuration UI**: New "Change Port" action in Server Info dialog
+  - Input validation (1024-65535, avoid port 3000)
+  - Automatic `.env` file update
+  - WinCC OA manager restart (stop → start)
+  - Progress notification with detailed steps
+  - Config cache invalidation for immediate UI updates
+
+### 🐛 Fixed
+- **HTTP 400 Error in showServerInfo**: Removed buggy `client.initialize()` call that was causing Bad Request errors
+- **Server Info Dialog**: Simplified to show current config instead of fetching server data (no more MCP requests)
+- **Port Change Cache Bug**: Config cache is now invalidated before reconnect, ensuring new port is shown immediately in UI
+
+### 🗑️ Removed
+- **Dead Code Cleanup**: Removed 715 lines of unused panel UI code
+  - Deleted `mcpPanel.ts` (386 lines) - never registered or imported
+  - Deleted `mcpPanelView.ts` (329 lines) - never registered or imported
+
 ## [1.9.0] - 2026-03-28
 
 ### ✨ Added

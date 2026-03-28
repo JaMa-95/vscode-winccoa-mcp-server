@@ -13,6 +13,7 @@ import { LanguageModelTools } from './languageModelTools';
 import { ProjectConfigDetector, McpConfig } from './projectConfigDetector';
 import { SetupWizard } from './setupWizard';
 import { ConnectionMonitor } from './connectionMonitor';
+import { McpConnectionInfo, McpServerExtensionApi } from './extensionApi';
 
 // Global persistent client
 let mcpClient: McpClient | null = null;
@@ -21,6 +22,9 @@ let currentConfig: McpConfig | null = null;
 // Connection Monitor
 let connectionMonitor: ConnectionMonitor | null = null;
 
+// Extension API event emitter
+const connectionChangeEmitter = new vscode.EventEmitter<McpConnectionInfo | null>();
+
 let statusBar: StatusBarManager;
 let languageModelTools: LanguageModelTools;
 let configDetector: ProjectConfigDetector;
@@ -28,7 +32,7 @@ let configDetector: ProjectConfigDetector;
 /**
  * Extension activation
  */
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<McpServerExtensionApi> {
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activating...');
 
     // Initialize Config Detector
@@ -92,7 +96,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand('winccoa.mcp.resetAndReinstall', resetAndReinstall),
     );
 
+    // Watch .env file for changes (port, token, host edits)
+    const envWatcher = vscode.workspace.createFileSystemWatcher('**/javascript/mcpServer/.env');
+    envWatcher.onDidChange(async () => {
+        ExtensionOutputChannel.info('.env file changed — re-detecting MCP config...');
+        configDetector.invalidateCache();
+        const { config } = await configDetector.detectConfig();
+        if (config) {
+            await createClient(config);
+            statusBar.setStatus('connected');
+            ExtensionOutputChannel.info(`✅ Reconnected with updated .env: ${config.url}`);
+        }
+    });
+    context.subscriptions.push(envWatcher, connectionChangeEmitter);
+
+    // Build and return the public extension API
+    const api: McpServerExtensionApi = {
+        getConnectionInfo: () => buildConnectionInfo(),
+        getConnectionState: () => {
+            if (mcpClient && currentConfig) {
+                return 'connected';
+            }
+            return 'disconnected';
+        },
+        onDidChangeConnection: connectionChangeEmitter.event,
+    };
+
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension activated ✅');
+    return api;
 }
 
 /**
@@ -108,6 +139,22 @@ export async function deactivate(): Promise<void> {
 
     await disposeClient();
     ExtensionOutputChannel.info('WinCC OA MCP Server Extension deactivated');
+}
+
+/**
+ * Build connection info from current config for the public API
+ */
+function buildConnectionInfo(): McpConnectionInfo | null {
+    if (!currentConfig) {
+        return null;
+    }
+    return {
+        url: currentConfig.url,
+        token: currentConfig.token,
+        authType: currentConfig.authType,
+        projectName: currentConfig.projectName,
+        projectPath: currentConfig.projectPath,
+    };
 }
 
 /**
@@ -132,6 +179,9 @@ async function createClient(config: McpConfig): Promise<McpClient> {
 
     // Start connection monitoring
     startConnectionMonitor();
+
+    // Notify consumers of new connection
+    connectionChangeEmitter.fire(buildConnectionInfo());
 
     ExtensionOutputChannel.info('✅ MCP Client created and initialized');
     return client;
@@ -160,6 +210,9 @@ async function disposeClient(): Promise<void> {
 
         // Update components
         languageModelTools.updateClient(null);
+
+        // Notify consumers of disconnection
+        connectionChangeEmitter.fire(null);
 
         ExtensionOutputChannel.info('MCP client disposed');
     } catch (error: any) {
@@ -221,8 +274,7 @@ function startConnectionMonitor(): void {
 async function handleConnectionLost(): Promise<void> {
     ExtensionOutputChannel.warn('⚠️ Connection lost to MCP Server');
     statusBar.setStatus('error', 'Connection lost');
-
-    // Don't show notification here - wait for auto-reconnect result
+    connectionChangeEmitter.fire(null);
 }
 
 /**
@@ -231,6 +283,7 @@ async function handleConnectionLost(): Promise<void> {
 function handleReconnectSuccess(): void {
     ExtensionOutputChannel.info('✅ Auto-reconnect successful');
     statusBar.setStatus('connected');
+    connectionChangeEmitter.fire(buildConnectionInfo());
 
     const config = vscode.workspace.getConfiguration('winccoa.mcp');
     const showNotifications = config.get<boolean>('showNotifications', true);
@@ -670,8 +723,26 @@ async function reconnect(): Promise<void> {
 
         ExtensionOutputChannel.info(`Connecting to MCP Server: ${config.url}`);
 
-        // Create new client (disposes old one, starts new monitor)
-        await createClient(config);
+        // Try to connect – if it fails, auto-start the manager and retry once
+        try {
+            await createClient(config);
+        } catch (connectErr: any) {
+            ExtensionOutputChannel.warn(
+                `Initial connect failed (${connectErr.message}) – attempting to start MCP Server manager...`,
+            );
+
+            const started = await tryStartMcpManager(config);
+            if (started) {
+                // Wait for the manager to initialise its HTTP endpoint
+                ExtensionOutputChannel.info('Manager started – waiting 6 s for HTTP endpoint...');
+                await new Promise((resolve) => setTimeout(resolve, 6000));
+                // Retry connection
+                await createClient(config);
+            } else {
+                // Cannot start manager automatically – re-throw original error
+                throw connectErr;
+            }
+        }
 
         // Reset monitor reconnect attempts
         if (connectionMonitor) {
@@ -690,6 +761,59 @@ async function reconnect(): Promise<void> {
         ExtensionOutputChannel.error(`Reconnect failed: ${error.message}`);
         statusBar.setStatus('error');
         vscode.window.showErrorMessage(`Failed to connect: ${error.message}`);
+    }
+}
+
+/**
+ * Try to start the MCP Server manager via PmonComponent.
+ * Returns true when a matching manager was found and the start command succeeded.
+ */
+async function tryStartMcpManager(config: McpConfig): Promise<boolean> {
+    const { PmonComponent } = await import('@winccoa-tools-pack/npm-winccoa-core');
+    const projectId = config.projectId;
+    const version = config.winCCOAVersion;
+
+    if (!projectId) {
+        ExtensionOutputChannel.warn('tryStartMcpManager: no projectId in config – skipping');
+        return false;
+    }
+
+    try {
+        const pmon = new PmonComponent();
+        if (version) {
+            try {
+                pmon.setVersion(version);
+            } catch {
+                ExtensionOutputChannel.warn(`Could not set WinCC OA version ${version} for PMON`);
+            }
+        }
+
+        // Find the MCP Server manager by matching startOptions
+        const managers = await pmon.getManagerOptionsList(projectId);
+        const mcpIndex = managers.findIndex(
+            (m) => m.component === 'node' && m.startOptions?.includes('mcpServer'),
+        );
+
+        if (mcpIndex < 0) {
+            ExtensionOutputChannel.warn(
+                'tryStartMcpManager: MCP Server manager not found in PMON list',
+            );
+            return false;
+        }
+
+        ExtensionOutputChannel.info(`Starting MCP Server manager at index ${mcpIndex}...`);
+        const exitCode = await pmon.startManager(projectId, mcpIndex);
+
+        if (exitCode === 0) {
+            ExtensionOutputChannel.info('✅ MCP Server manager start command sent successfully');
+            return true;
+        }
+
+        ExtensionOutputChannel.warn(`PMON startManager returned exit code ${exitCode}`);
+        return false;
+    } catch (err: any) {
+        ExtensionOutputChannel.warn(`tryStartMcpManager failed: ${err.message}`);
+        return false;
     }
 }
 
@@ -818,7 +942,8 @@ async function runSetup(): Promise<void> {
             const success = await SetupWizard.resetAndReinstall(
                 projectPath,
                 project.name || project.id,
-                project.oaInstallPath,
+                project.id,
+                project.version,
             );
 
             if (success) {
@@ -832,7 +957,8 @@ async function runSetup(): Promise<void> {
         const success = await SetupWizard.runSetup(
             projectPath,
             project.name || project.id,
-            project.oaInstallPath,
+            project.id,
+            project.version,
         );
 
         if (success) {
@@ -930,7 +1056,8 @@ async function resetAndReinstall(): Promise<void> {
         const success = await SetupWizard.resetAndReinstall(
             projectPath,
             project.name || project.id,
-            project.oaInstallPath,
+            project.id,
+            project.version,
         );
 
         if (success) {

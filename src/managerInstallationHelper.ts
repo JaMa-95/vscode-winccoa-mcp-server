@@ -1,324 +1,155 @@
 /**
  * Manager Installation Helper
  *
- * Provides user dialogs and automatic manager installation via PMON
+ * Handles adding the MCP Server manager to WinCC OA:
+ * 1. Runtime install via PmonComponent (insertManagerAt) when project is running
+ * 2. Fallback to config/progs (ManagerConfigWriter) when PMON is not reachable
+ * 3. Always ensures persistent config entry exists
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import {
+    PmonComponent,
+    ProjEnvManagerOptions,
+    ProjEnvManagerStartMode,
+} from '@winccoa-tools-pack/npm-winccoa-core';
 import { ManagerConfigWriter, ManagerEntry } from './managerConfigWriter';
 import { ExtensionOutputChannel } from './extensionOutput';
-import { PmonComponent, ProjEnvManagerOptions } from '@winccoa-tools-pack/npm-winccoa-core';
+
+/** Relative path of the MCP Server entry script (from project root) */
+const MCP_SCRIPT_REL = 'mcpServer/index.js';
+/** Keyword used to detect the manager in PMON and config/progs */
+const MCP_MANAGER_KEY = 'mcpServer';
 
 export class ManagerInstallationHelper {
     /**
-     * Show dialog asking user if manager should be added automatically
-     * @returns 'auto' | 'manual' | 'cancel'
-     */
-    static async askUserForInstallation(
-        mcpServerPath: string,
-    ): Promise<'auto' | 'manual' | 'cancel'> {
-        const scriptPath = path.join(mcpServerPath, 'index_http.js');
-
-        const message = [
-            'MCP Server installation complete!',
-            '',
-            'To use the MCP Server, a WinCC OA manager must be added.',
-            '',
-            '⚠️ Note: After adding the manager, the project must be restarted.',
-        ].join('\n');
-
-        const choice = await vscode.window.showInformationMessage(
-            message,
-            {
-                modal: true,
-                detail: 'The manager will start automatically with the project (start mode: always, 3 retries).',
-            },
-            'Add Automatically',
-            'Manual Instructions',
-            'Cancel',
-        );
-
-        if (choice === 'Add Automatically') {
-            return 'auto';
-        } else if (choice === 'Manual Instructions') {
-            return 'manual';
-        } else {
-            return 'cancel';
-        }
-    }
-
-    /**
-     * Add manager automatically via PMON (runtime) with fallback to config file
+     * Add (or verify existence of) the MCP Server manager.
+     *
+     * Strategy:
+     *  1. Check config/progs for a persistent entry.
+     *  2. Try PMON runtime install via PmonComponent.insertManagerAt().
+     *     - If PMON is reachable and the manager is not yet present → insert at runtime.
+     *     - If PMON is not reachable → fall through to step 3.
+     *  3. Always ensure a persistent entry exists in config/progs.
+     *
+     * @param projectPath     Absolute path to the WinCC OA project directory
+     * @param mcpServerPath   Absolute path to the mcpServer installation folder (unused, kept for signature compat)
+     * @param projectId       WinCC OA project name/ID (used for PMON commands)
+     * @param winCCOAVersion  WinCC OA version string, e.g. '3.21' (used to locate pmon binary)
      */
     static async addManagerAutomatically(
         projectPath: string,
         mcpServerPath: string,
+        projectId: string,
+        winCCOAVersion: string,
     ): Promise<boolean> {
-        ExtensionOutputChannel.info('=== Starting MCP Server Manager Installation ===');
-        ExtensionOutputChannel.info(`Project Path: ${projectPath}`);
-        ExtensionOutputChannel.info(`MCP Server Path: ${mcpServerPath}`);
-
         try {
-            // Use relative path from project root
-            const scriptPath = 'mcpServer\\\\index_http.js';
-            ExtensionOutputChannel.info(`Manager script path: ${scriptPath}`);
+            ExtensionOutputChannel.info(`Adding MCP Server manager for project: ${projectId}`);
 
-            ExtensionOutputChannel.info('Adding MCP Server manager via npm-winccoa-core');
-
-            // Step 1: Get project ID and WinCC OA version from Project Admin Extension
-            let projectId: string | undefined;
-            let winccOAVersion: string | undefined;
-
-            ExtensionOutputChannel.info('Getting project info from Project Admin Extension...');
-            const projectAdminExt = vscode.extensions.getExtension(
-                'richardjanisch.winccoa-project-admin',
+            // ── Step 1: Check persistent config/progs ────────────────────────────
+            const existsInConfig = await ManagerConfigWriter.managerExists(
+                projectPath,
+                'node',
+                MCP_MANAGER_KEY,
             );
+            if (existsInConfig) {
+                ExtensionOutputChannel.info('MCP Server manager already present in config/progs');
+            }
 
-            if (projectAdminExt) {
-                ExtensionOutputChannel.info('Project Admin Extension found, activating...');
-                try {
-                    await projectAdminExt.activate();
-                    const api = projectAdminExt.exports;
-                    ExtensionOutputChannel.info(`Project Admin API available: ${!!api}`);
-
-                    if (api && api.getCurrentProject) {
-                        const currentProject = api.getCurrentProject();
-                        ExtensionOutputChannel.info(
-                            `Current project from API: ${JSON.stringify(currentProject)}`,
+            // ── Step 2: Try runtime install via PmonComponent ────────────────────
+            let runtimeSuccess = false;
+            try {
+                const pmon = new PmonComponent();
+                if (winCCOAVersion) {
+                    try {
+                        pmon.setVersion(winCCOAVersion);
+                    } catch {
+                        ExtensionOutputChannel.warn(
+                            `Could not set WinCC OA version ${winCCOAVersion} for PMON, using auto-detect`,
                         );
+                    }
+                }
 
-                        if (currentProject) {
-                            projectId = currentProject.id;
-                            winccOAVersion = currentProject.version;
-                            ExtensionOutputChannel.info(
-                                `✓ Using project from Project Admin Extension:`,
-                            );
-                            ExtensionOutputChannel.info(`  - Project ID: ${projectId}`);
-                            ExtensionOutputChannel.info(`  - WinCC OA Version: ${winccOAVersion}`);
-                        } else {
-                            ExtensionOutputChannel.warn(
-                                'getCurrentProject() returned null/undefined',
-                            );
-                        }
+                const managers = await pmon.getManagerOptionsList(projectId);
+                const existsInPmon = managers.some(
+                    (m) => m.component === 'node' && m.startOptions?.includes(MCP_MANAGER_KEY),
+                );
+
+                if (existsInPmon) {
+                    ExtensionOutputChannel.info('MCP Server manager already running in PMON');
+                    runtimeSuccess = true;
+                } else {
+                    const managerOptions: ProjEnvManagerOptions = {
+                        component: 'node',
+                        startMode: ProjEnvManagerStartMode.Manual,
+                        secondToKill: 30,
+                        resetMin: 1,
+                        resetStartCounter: 3,
+                        startOptions: MCP_SCRIPT_REL,
+                    };
+                    const insertPosition = managers.length;
+                    const exitCode = await pmon.insertManagerAt(
+                        managerOptions,
+                        projectId,
+                        insertPosition,
+                    );
+
+                    if (exitCode === 0) {
+                        ExtensionOutputChannel.info(
+                            '✅ MCP Server manager inserted into PMON at runtime',
+                        );
+                        runtimeSuccess = true;
                     } else {
                         ExtensionOutputChannel.warn(
-                            'Project Admin API or getCurrentProject() not available',
+                            `PMON insertManagerAt returned exit code ${exitCode}, falling back to config/progs`,
                         );
                     }
-                } catch (error: any) {
-                    ExtensionOutputChannel.error(
-                        `Could not get project from Project Admin Extension: ${error.message}`,
-                    );
-                    ExtensionOutputChannel.error(error.stack || error);
                 }
-            } else {
+            } catch (pmonErr: any) {
                 ExtensionOutputChannel.warn(
-                    'Project Admin Extension not found (richardjanisch.winccoa-project-admin)',
+                    `PMON not reachable (${pmonErr.message}) – falling back to config/progs`,
                 );
             }
 
-            // Fallback for project ID: Extract from path
-            if (!projectId) {
-                projectId = path.basename(projectPath);
-                ExtensionOutputChannel.info(`⚠ Using project name from path: ${projectId}`);
-            }
-
-            // Fallback for version: Try to extract from project config
-            if (!winccOAVersion) {
-                ExtensionOutputChannel.warn(
-                    'WinCC OA version not available from Project Admin Extension',
-                );
-                ExtensionOutputChannel.warn('Attempting to read from project config file...');
-
+            // ── Step 3: Ensure persistent entry in config/progs ──────────────────
+            if (!existsInConfig) {
                 try {
-                    const configPath = path.join(projectPath, 'config', 'config');
-                    const configContent = await vscode.workspace.fs.readFile(
-                        vscode.Uri.file(configPath),
-                    );
-                    const configText = Buffer.from(configContent).toString('utf-8');
-
-                    // Find pvss_path line with version
-                    const pvssPathMatch = configText.match(/pvss_path\s*=\s*"([^"]*)"/i);
-                    if (pvssPathMatch) {
-                        const pvssPath = pvssPathMatch[1];
-                        const versionMatch = pvssPath.match(/WinCC_OA[\\\\/]([\d\.]+)/);
-                        if (versionMatch) {
-                            winccOAVersion = versionMatch[1];
-                            ExtensionOutputChannel.info(
-                                `⚠ Extracted version from project config: ${winccOAVersion}`,
-                            );
-                        }
+                    const entry: ManagerEntry = {
+                        component: 'node',
+                        startMode: 'manual',
+                        secKill: 30,
+                        restartCount: 3,
+                        resetMin: 1,
+                        options: MCP_SCRIPT_REL,
+                    };
+                    await ManagerConfigWriter.addManager(projectPath, entry);
+                    ExtensionOutputChannel.info('✅ MCP Server manager added to config/progs');
+                } catch (cfgErr: any) {
+                    if (!runtimeSuccess) {
+                        throw cfgErr; // both paths failed – propagate
                     }
-                } catch (error: any) {
-                    ExtensionOutputChannel.error(`Failed to read project config: ${error.message}`);
+                    ExtensionOutputChannel.warn(`Could not write config/progs: ${cfgErr.message}`);
                 }
             }
 
-            if (!winccOAVersion) {
-                throw new Error(
-                    'Cannot determine WinCC OA version. Please ensure Project Admin Extension is installed and a project is selected.',
-                );
-            }
-
-            // Step 2: Check if manager already exists
-            ExtensionOutputChannel.info(`Initializing PMON component for project: ${projectId}`);
-            ExtensionOutputChannel.info(`Using WinCC OA version: ${winccOAVersion}`);
-            const pmon = new PmonComponent();
-            pmon.setVersion(winccOAVersion);
-
-            let managers;
-            try {
-                ExtensionOutputChannel.info('Fetching current manager list from PMON...');
-                managers = await pmon.getManagerOptionsList(projectId);
-                ExtensionOutputChannel.info(`Found ${managers.length} existing managers`);
-
-                // Log all managers for debugging
-                managers.forEach((m, idx) => {
-                    ExtensionOutputChannel.debug(
-                        `Manager ${idx}: ${m.component} - ${m.startOptions || '(no options)'}`,
-                    );
-                });
-
-                // Check for existing node manager with same script
-                const exists = managers.some(
-                    (m) => m.component === 'node' && m.startOptions?.includes('mcpServer'),
-                );
-
-                if (exists) {
-                    ExtensionOutputChannel.info(
-                        '✓ MCP Server manager already exists - skipping installation',
-                    );
-                    vscode.window.showWarningMessage(
-                        'MCP Server manager already exists in project configuration.',
-                    );
-                    return true;
-                }
-
-                ExtensionOutputChannel.info(
-                    'No existing MCP Server manager found - proceeding with installation',
-                );
-            } catch (error: any) {
-                ExtensionOutputChannel.error(
-                    `Failed to get manager list from PMON: ${error.message}`,
-                );
-                ExtensionOutputChannel.error(error.stack || error);
-                ExtensionOutputChannel.warn('Continuing with installation despite error...');
-                managers = [];
-            }
-
-            // Step 3: Build manager options
-            const managerOptions: ProjEnvManagerOptions = {
-                component: 'node',
-                startMode: 2, // always
-                secondToKill: 30,
-                resetMin: 1,
-                resetStartCounter: 3,
-                startOptions: scriptPath,
-            };
-
-            ExtensionOutputChannel.info('Manager configuration:');
-            ExtensionOutputChannel.info(`  - Component: ${managerOptions.component}`);
-            ExtensionOutputChannel.info(`  - Start Mode: ${managerOptions.startMode} (2 = always)`);
-            ExtensionOutputChannel.info(`  - Seconds to Kill: ${managerOptions.secondToKill}`);
-            ExtensionOutputChannel.info(`  - Reset Min: ${managerOptions.resetMin}`);
-            ExtensionOutputChannel.info(
-                `  - Reset Start Counter: ${managerOptions.resetStartCounter}`,
-            );
-            ExtensionOutputChannel.info(`  - Start Options: ${managerOptions.startOptions}`);
-
-            // Step 4: Add manager at end of list
-            const insertPosition = managers.length;
-
-            ExtensionOutputChannel.info(
-                `Inserting manager at position ${insertPosition} (end of list)`,
-            );
-            ExtensionOutputChannel.info(`Calling PMON.insertManagerAt()...`);
-
-            const exitCode = await pmon.insertManagerAt(managerOptions, projectId, insertPosition);
-
-            ExtensionOutputChannel.info(`PMON.insertManagerAt() returned exit code: ${exitCode}`);
-
-            if (exitCode === 0) {
-                ExtensionOutputChannel.info('✅ Manager added successfully via PMON');
-
-                // Show success message
+            // ── Notify user ───────────────────────────────────────────────────────
+            if (runtimeSuccess) {
                 vscode.window.showInformationMessage(
-                    '✅ MCP Server manager added successfully!\n\n' +
-                        'The manager will start automatically with the project (start mode: always).',
+                    '✅ MCP Server manager added. The project will start it automatically.',
+                );
+            } else {
+                vscode.window.showInformationMessage(
+                    '✅ MCP Server installed!\n\n' +
+                        '⚠️ Restart the WinCC OA project to activate the MCP Server manager.',
+                    { modal: true },
                     'OK',
                 );
-
-                return true;
-            } else {
-                throw new Error(`PMON insertManagerAt failed with exit code: ${exitCode}`);
             }
-        } catch (error: any) {
-            ExtensionOutputChannel.error(`❌ Failed to add manager via PMON: ${error.message}`);
-            ExtensionOutputChannel.error(error.stack || error);
-
-            // Fallback to config file method
-            ExtensionOutputChannel.info('Attempting fallback to config/progs file method...');
-            return await this.addManagerViaConfigFile(projectPath, mcpServerPath);
-        }
-    }
-
-    /**
-     * Fallback: Add manager via config/progs file (legacy method)
-     */
-    private static async addManagerViaConfigFile(
-        projectPath: string,
-        mcpServerPath: string,
-    ): Promise<boolean> {
-        ExtensionOutputChannel.info('=== Fallback: Adding manager via config/progs file ===');
-
-        try {
-            const scriptPath = 'mcpServer\\\\index_http.js';
-
-            // Check if manager already exists
-            ExtensionOutputChannel.info('Checking if manager already exists in config file...');
-            const exists = await ManagerConfigWriter.managerExists(projectPath, 'node', scriptPath);
-
-            if (exists) {
-                ExtensionOutputChannel.info('Manager already exists in config/progs');
-                vscode.window.showWarningMessage(
-                    'MCP Server manager already exists in project configuration.',
-                );
-                return true;
-            }
-
-            // Create manager entry
-            const manager: ManagerEntry = {
-                component: 'node',
-                startMode: 'always',
-                secKill: 30,
-                restartCount: 3,
-                resetMin: 1,
-                options: scriptPath,
-            };
-
-            ExtensionOutputChannel.info('Writing manager to config/progs file...');
-            ExtensionOutputChannel.info(`Manager config: ${JSON.stringify(manager)}`);
-
-            // Add to progs file
-            await ManagerConfigWriter.addManager(projectPath, manager);
-
-            ExtensionOutputChannel.info('✅ Manager added successfully to config/progs file');
-
-            // Show success message with restart reminder
-            vscode.window.showInformationMessage(
-                '✅ MCP Server manager added successfully!\n\n' +
-                    '⚠️ IMPORTANT: You must restart the WinCC OA project for the manager to appear.\n\n' +
-                    'After restart, the manager will start automatically (start mode: always).',
-                'OK',
-            );
 
             return true;
         } catch (error: any) {
-            ExtensionOutputChannel.error(
-                `❌ Failed to add manager via config file: ${error.message}`,
-            );
-            ExtensionOutputChannel.error(error.stack || error);
+            ExtensionOutputChannel.error(`Failed to add manager: ${error.message}`);
             vscode.window.showErrorMessage(`Failed to add MCP Server manager: ${error.message}`);
             return false;
         }
@@ -328,7 +159,7 @@ export class ManagerInstallationHelper {
      * Show manual installation instructions
      */
     static async showManualInstructions(projectPath: string, mcpServerPath: string): Promise<void> {
-        const scriptPath = path.join(mcpServerPath, 'index_http.js');
+        const scriptPath = path.join(mcpServerPath, 'index.js');
         const nextNum = await ManagerConfigWriter.getNextFreeManagerNumber(projectPath);
 
         const instructions = [
